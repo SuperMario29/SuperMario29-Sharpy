@@ -1,0 +1,368 @@
+﻿@{
+    Layout = "~/_SiteMain.cshtml";
+    Page.Title = "Profile";
+    if (WebSecurity.CurrentUserName == "")
+    {
+        Response.Redirect("~/Account/Login");
+    }
+    
+    
+    var occupation = "";
+    var firstname = "";
+    var lastname = "";
+    var experience = "";
+    var about = "";
+    var email = "";
+    var location = "";
+    var company = "";
+    var userName = WebSecurity.CurrentUserName;
+    var userID = WebSecurity.CurrentUserId;
+    var photo = "";
+    var roles = (SimpleRoleProvider)Roles.Provider;
+
+    if (roles.GetRolesForUser(userName).Contains("Client"))
+    {
+        Response.Redirect("~/Premium/ClientHome");
+    }
+
+    Response.OutputCache(60);
+
+    if (!UrlData[0].IsInt())
+    {
+        Response.Redirect("~/Home");
+    }
+
+    var search = UrlData[0].AsInt();
+        
+    if (search == userID)
+    {
+        Response.Redirect("~/Profile/Profile");
+    }
+    
+    var db = Database.Open("StarterSite");
+
+    var c_user = db.QueryValue("SELECT [Disabled] FROM UserProfile WHERE LOWER(Email) = LOWER(@0)", userName);
+
+    if (c_user)
+    {
+        Response.Redirect("~/Account/Disabled Account");
+    }
+
+            // Check if user already exists
+   var user = db.QuerySingle("SELECT * FROM UserProfile WHERE [UserId]=@0", search);
+            if (user != null) {
+               occupation = user.Occupation;
+                firstname = user.firstName;
+                lastname = user.lastName;
+                experience = user.Experience;
+                about = user.About;
+                email = user.Email;
+                photo = user.ProfileImageMIME;
+                company = user.Company;
+                location = "" + user.City + "," + user.stateProvider;                               
+            }
+            var awaitAcceptance = db.QuerySingle("SELECT * FROM [PeerNet] WHERE [PeerId]=@1 AND [UserId]=@0 AND [isaccepted]=@2 AND [blocked]=@3 AND [isfriend]=@4", userID, search, false, false, true);
+            var checkAcceptance = db.QuerySingle("SELECT * FROM [PeerNet] WHERE [PeerId]=@0 AND [UserId]=@1 AND [isaccepted]=@2 AND [blocked]=@3 AND [isfriend]=@4", userID, search, false, false, true);
+            var checkPeer = db.QuerySingle("SELECT * FROM [PeerNet] WHERE [UserId]=@0 AND [PeerId]=@1 OR [PeerId]=@0 AND [UserId]=@1", userID, search);
+            var checkBlock = db.QuerySingle("SELECT * FROM [PeerNet]  WHERE ([PeerId]=@0 AND [UserId]=@1 AND [blocked]=@2) OR ([PeerId]=@1 AND [UserId]=@0 AND [blocked]=@2)", userID, search, true);
+
+            var planQue = db.Query("SELECT * FROM [Plans] WHERE [UserId]=@0 AND [visibility]>@1", search,0).ToList();
+            var caseQue = db.Query("SELECT * FROM [CaseStudies] WHERE [UserId]=@0 AND [visibility]>@1", search,0).ToList();
+            var peerQue = db.Query("SELECT [UserProfile].* FROM [UserProfile] INNER JOIN [PeerNet] ON [UserProfile].[UserId]=[PeerNet].[UserId] OR [UserProfile].[UserId]=[PeerNet].[PeerId]  WHERE ([PeerNet].[UserId]=@0 AND [PeerNet].[isfriend]=@1 AND [PeerNet].[isaccepted]=@2 AND [PeerNet].[blocked]=@3) OR ([PeerNet].[PeerId]=@0 AND [PeerNet].[isfriend]=@1 AND [PeerNet].[isaccepted]=@2 AND [PeerNet].[blocked]=@3)", search, true, true, false).ToList();
+            var marketQue = db.Query("SELECT * FROM [Products] WHERE [Products].[UserId]=@0 AND [Products].[Visibility]=2", search).ToList();
+
+            
+            if(IsPost)
+            {
+
+                if (Request.Form["btnSubmit"] == "Add Peer")
+                {
+                    var findpeer = db.QuerySingle("SELECT * FROM [PeerNet] WHERE ([UserId]=@0 AND [PeerId]=@1) OR ([PeerId]=@0 AND [UserId]=@1)", userID, search);
+                    if(findpeer == null)
+                    {
+                db.Execute("INSERT INTO [PeerNet] ([UserId], [PeerId], [blocked], [isfriend], [isaccepted]) VALUES (@0, @1, @2, @3, @4)", userID, search, false, true, false);
+                    }
+                }
+                if (Request.Form["btnSubmit"] == "Remove Peer")
+                {
+                    db.Execute("DELETE FROM [PeerNet] WHERE ([UserId]=@0 AND [PeerId]=@1) OR ([UserId]=@1 AND [PeerId]=@0)", userID, search);
+                }
+                if (Request.Form["btnSubmit"] == "Block Peer")
+                {
+                    var findpeer = db.QuerySingle("SELECT * [PeerNet] WHERE ([UserId])=@0 AND [PeerId]=@1) OR ([PeerId]=@0 AND [UserId])=@1)", userID, search);
+                    
+                    if (findpeer != null)
+                    {
+                        db.Execute("UPDATE [PeerNet] SET [blocked]=@0 WHERE [UserId]=@1 OR [PeerId]=@1", true, userID);
+                    }
+                    else
+                    {
+                        db.Execute("INSERT INTO [PeerNet] ([UserId], [PeerId], [blocked], [isfriend], [isaccepted]) VALUES (@0, @1, @2, @3, @4)", userID, search, false, false, false);
+                    }
+                }
+                if (Request.Form["btnSubmit"] == "Accept Peer")
+                {
+                    db.Execute("UPDATE [PeerNet] SET [isaccepted]=@0 WHERE [UserId]=@1 AND [PeerId]=@2", true, search, userID);
+                }
+            }
+         }
+ <script type="text/javascript">
+     $(function () {
+         $("#accord").accordion();
+         $("#accordion").accordion("option", "icons", null);
+     });
+</script>
+@section featured {
+<section class="featured">
+    <div class="content-wrapper">
+        <hgroup class="title">
+            <h1>@Page.Title.</h1>
+            <h2>Sharapist: A Network For Therapy</h2>
+        </hgroup>
+        <form method="post" name="form1">
+        <fieldset>
+            <legend>Profile Information</legend>
+            <ul style="list-style: none">
+                @if (photo != null)
+                {
+                <li>
+                    <img style="border:solid; height:200px; width:200px" src="~/Dynamic/PeerImage/@search" alt="" />
+                </li>
+                }
+                else
+                {
+                    <li>
+                    <img style="border:solid; height:200px; width:200px" alt="Default Image" src="~/Images/DefaultProfile.png" />
+                </li>
+                }
+                <li>
+                     <label style="font:bold 15px;">@firstname @lastname</label>
+                    <img src="~/Images/Flag.png" onclick="flagUser(@search)" height="30" width="30" alt="Flag User" title="Flag User For Unappropriate Comment?" />
+                </li>
+                <li>
+                <label>Email: @email</label>
+                <label>Location: @location</label>
+                <label>Company/Business: @company</label>
+                <label>Occupation: @occupation</label>
+                </li>
+                @if (awaitAcceptance != null)
+                {
+                    <li>
+                        <label>Awaiting Acceptance!!</label>
+                    </li>
+                }
+                else
+                {
+                if (checkAcceptance != null)
+                {
+                    <li>
+                    <input type="submit" value="Accept Peer" onclick="$.jqDialog.alert('You Accepted This Peer!!', function () {	alert('You Accepted This Peer!!'); });" id="btnSubmit4" name="btnSubmit"/>
+                        @if(checkBlock == null)
+                        {
+                    <input type="submit" onclick="$.jqDialog.alert('You Blocked This Peer Successfully.', function () {	alert('You Blocked This Peer Successfully'); });" value="Block Peer" id="btnBlock" name="btnSubmit"/>
+                        }
+                        else
+                        {
+                    <input type="submit" onclick="$.jqDialog.alert('You Unblocked This Peer Successfully.', function () { alert('You Unblocked This Peer Successfully'); });" value="Block Peer" name="btnSubmit"/>  
+                        }
+                    </li>
+                }
+                 else
+                 {
+                    if(checkPeer == null)
+                        {
+                            <li>
+                                 <input type="submit" onclick="$.jqDialog.alert('You Sent A Peer Request To This Person Successfully.', function () { alert('You Sent A Peer Request To This Person Successfully'); });" value="Add Peer" id="btnSubmit" name="btnSubmit"/>
+                                  @if(checkBlock == null)
+                                     {
+                                    <input type="submit" onclick="$.jqDialog.alert('You Blocked This Peer Successfully.', function () { alert('You Blocked This Peer Successfully'); });" value="Block Peer" id="btnBlock1" name="btnSubmit"/>
+                                    }
+                                  else
+                                    {
+                                    <input type="submit" onclick="$.jqDialog.alert('You Unblocked This Peer Successfully.', function () { alert('You Unblocked This Peer Successfully'); });" value="Block Peer" name="btnSubmit"/>  
+                                    }
+                            </li>
+                        }
+                    else 
+                        {
+                            <li>
+                                <input type="submit" onclick="$.jqDialog.alert('You Removed This Peer Successfully.', function () { alert('You Removed This Peer Successfully'); });" value="Remove Peer" id="btnSubmit2" name="btnSubmit"/>
+                                @if(checkBlock == null)
+                                {
+                                <input type="submit" onclick="$.jqDialog.alert('You Blocked This Peer Successfully.', function () { alert('You Blocked This Peer Successfully'); });" value="Block Peer" id="btnBlock2" name="btnSubmit"/>
+                                }
+                                else
+                                {
+                                <input type="submit" onclick="$.jqDialog.alert('You Unblocked This Peer Successfully.', function () { alert('You Unblocked This Peer Successfully'); });" value="Block Peer" name="btnSubmit"/>  
+                                }
+                            </li>
+                        }
+                        }
+                    }
+                
+                <li>
+                <label>Experience:</label>
+                <p id="experienceText">@experience</p>
+                </li>
+                <li>
+                <label>About Me:</label>
+                <p id="aboutText">@about</p>
+                </li>
+                @if (checkPeer != null)
+                {
+                <li>
+                            <label>Peer Network:</label>
+                    <div id="list-profile">
+                              <ul>  
+                            @foreach (var peer in peerQue)
+                                   {
+                                        if(peer.UserID != search)
+                                        {
+                          <li>
+                            @if (peer.ProfileImageMIME != null)
+                            {
+                                <a href="~/Profile/PeerView/@peer.UserId">
+                              <img alt="Images from @peer.firstName @peer.lastName" title="@peer.firstName @peer.lastName" height="50" width="50" src="~/Dynamic/PeerImage/@peer.UserId" class="thumbnail-no-border" />
+                                </a>
+                            }
+                            else
+                            {
+                                <a href="~/Profile/PeerView/@peer.UserId">
+                            <img style="border:solid" title="@peer.firstName @peer.lastName" src="~/Images/DefaultProfile.png" alt="" height="50"  width="50" />
+                                    </a>
+                            }
+                           </li>
+                                     } 
+                                    }
+                                    </ul>
+                        </div>
+                    <a href="~/Profile/PeerNetwork_Peer/@search">See All Peers</a>
+                    </li>
+                }
+                </ul>
+        </fieldset>    
+            @if (checkPeer != null)
+            {
+                                <div id="accord">
+                                @if(caseQue.Count > 0)
+                                {
+                              <h3>Case Studies:</h3>
+                                    <div>
+                                <table>
+                                    <tr>
+                                        <th>Case Study</th>
+                                        <th>Like?</th>
+                                        <th>Borrow?</th>
+                                        <th>Likes</th>
+                                    </tr>
+                                    @foreach (var caseS in caseQue)
+                                    {
+                                            <tr>
+                                                <td>
+                                     <a href="~/CaseStudy/PeerCase/@caseS.id" style="font:bold 13px arial,verdana" title="@caseS.id">@caseS.name</a>
+                                                    </td> 
+                                                <td>
+                                        <img src="~/Images/Heart.png" alt="Favor Case Study" onclick="caseLike(@caseS.id,@caseS.favorite)" style="height:30px; width: 30px; background-size: 30px" />
+                                                    </td>
+                                                <td>
+                                        <img src="~/Images/Plus.png" alt="Borrow Case Study" style="background-size: 30px; height: 30px; width: 30px" onclick="caseBorrow(@caseS.id,@search)"  /> 
+                                                </td>
+                                                <td>
+                                        <label>@caseS.favorite</label>
+                                                </td>
+                                                </tr>
+                                     } 
+                                    </table>
+                                        </div>
+                                }
+       
+                                @if(planQue.Count > 0)
+                                {
+                                <h3>Plan:</h3>
+                                    <div>
+                                <table>
+                                    <tr>
+                                        <th colspan="2">Plan</th>
+                                        <th>Like?</th>
+                                        <th>Borrow?</th>
+                                        <th>Likes</th>
+                                    </tr>
+                                 @foreach (var item in planQue)
+                                    {
+                                            <tr>
+                                                <td>
+                                            @if (item.PlanImageMIME != null)
+                                            {
+                                     <img  alt="Images from @item.name" height="30" width="30" src="~/Dynamic/downloadPlanImage/@item.id" class="thumbnail-no-border" />
+                                            }
+                                            else
+                                            {
+                                    <img src="~/Images/QuestionMark.png" alt="Default Image" height="30"  width="30" />   
+                                            }  
+                                                    </td>
+                                                <td>
+                                     <a href="~/Plan/PeerPlan/@item.id" title="@item.id" style="font:bold 13px arial,verdana">@item.name</a>
+                                                    </td>
+                                                <td>
+                                        <img src="~/Images/Heart.png" alt="Favor Plan" onclick="planLike(@item.id,@item.favorite)" style="background-size: 30px; height:30px; width: 30px" />
+                                                    </td>
+                                                <td>
+                                        <img onclick="planBorrow(@item.id,@search)" alt="Borrow Plan" src="~/Images/Plus.png" style="background-size: 30px; height:30px; width: 30px" />
+                                                    </td>
+                                                <td>
+                                        <label>@item.favorite</label>
+                                                </td>
+                                            </tr>
+                                     } 
+                                   </table>
+                                        </div>
+                                } 
+                                     
+                                    @if(marketQue.Count > 0)
+                {
+                                    <h3>Market Place</h3>
+                     <h3>Available Products:</h3>
+                                    <div>
+                                <table style="max-height: 300px">
+                                    <tr>
+                                        <th>Product</th>
+                                        <th>Name</th>
+                                        <th>Ranking</th>
+                                    </tr>
+                                 @foreach (var item in marketQue)
+                                    {
+                                            <tr>
+                                                <td>
+                                            @if (item.ProductImageMIME != null)
+                                            {
+                                     <img  alt="Images from @item.Name" height="30" width="30" src="~/Dynamic/downloadProductImage/@item.id" class="thumbnail-no-border" />
+                                            }
+                                            else
+                                            {
+                                    <img src="~/Images/QuestionMark.png" alt="" height="30"  width="30" />   
+                                            } 
+                                                    </td>
+                                                <td>
+                                     <a href="~/MarketPlace/ItemDetail/@item.id" style="font:bold 13px arial,verdana">@item.Name</a>
+                                                    </td> 
+                                                <td>
+                                       @if (item.Rating != null)
+                                       {
+                                      <label>@item.Rating / 5</label>
+                                       }
+                                      else
+                                      {
+                                           
+                                      }
+                                                </td>
+                                            </tr>
+                                     } 
+                                    </table> 
+                                        </div>
+                                    }
+                                    </div>
+                                    }
+            </form>
+        </div>
+    </section>
+        }

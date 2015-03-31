@@ -1,0 +1,179 @@
+﻿@using WebMatrix.WebData
+
+@{
+    WebSecurity.RequireAuthenticatedUser();
+    
+    Layout = "~/_SiteMessage.cshtml";
+    Page.Title = "Manage Client";
+    
+    // Initialize general page variables
+    var clientEmail = "";
+    var firstname = "";
+    var lastname = "";
+    var userName = WebSecurity.CurrentUserName;
+    var userID = WebSecurity.CurrentUserId;
+    
+    if (WebSecurity.CurrentUserName == "")
+    {
+        Response.Redirect("~/Account/Login");
+    }
+    var roles = (SimpleRoleProvider)Roles.Provider;
+
+    if (roles.GetRolesForUser(userName).Contains("Client"))
+    {
+        Response.Redirect("~/Premium/ClientHome");
+    }
+
+    Response.OutputCache(60);
+
+    if (!UrlData[0].IsInt())
+    {
+        Response.Redirect("~/Premium/Management");
+    }
+
+    var clientID = UrlData[0].AsInt();
+
+    var action = Request.Form["action"];
+
+    bool hasLocalAccount = OAuthWebSecurity.HasLocalAccount(WebSecurity.CurrentUserId);
+
+    string successMessage = "";
+    var message = Request.QueryString["message"];
+    if (message == "ChangedPassword")
+    {
+        successMessage = "Your password has been changed.";
+    }
+    else if (message == "SetPassword")
+    {
+        successMessage = "Your password has been set.";
+    }
+    else if (message == "RemovedLogin")
+    {
+        successMessage = "The external login was removed.";
+    }
+
+    if (hasLocalAccount)
+    {
+        Validation.RequireField("currentPassword", "The current password field is required.");
+        Validation.Add("currentPassword",
+            Validator.StringLength(
+                maxLength: Int32.MaxValue,
+                minLength: 6,
+                errorMessage: "Current password must be at least 6 characters"));
+    }
+    Validation.RequireField("newPassword", "The new password field is required.");
+    Validation.Add("confirmPassword",
+        Validator.Required("The confirm new password field is required."),
+        Validator.EqualsTo("newPassword", "The new password and confirmation password do not match."));
+    Validation.Add("newPassword",
+        Validator.StringLength(
+            maxLength: Int32.MaxValue,
+            minLength: 6,
+            errorMessage: "New password must be at least 6 characters"));
+
+    var db = Database.Open("StarterSite");
+
+    var user = db.QueryValue("SELECT [Disabled] FROM UserProfile WHERE LOWER(Email) = LOWER(@0)", userName);
+
+    if (user)
+    {
+        Response.Redirect("~/Account/Disabled Account");
+    }
+            
+    var clientQue = db.QuerySingle("SELECT * FROM [UserProfile] WHERE [hasTherapist]=@0 AND [UserId]=@1", userID, clientID);
+
+    clientEmail = clientQue.Email;
+    firstname = clientQue.firstName;
+    lastname = clientQue.lastName;
+
+    // If this is a POST request, validate and process data
+    if (IsPost && clientQue != null) {
+        clientEmail = Request.Form["clientEmail"];
+        if (action == "password")
+        {
+            // Handle local account password operations
+            var currentPassword = Request.Form["currentPassword"];
+            var newPassword = Request.Form["newPassword"];
+            var confirmPassword = Request.Form["confirmPassword"];
+            firstname = Request.Form["firstname"];
+            var firstUp = char.ToUpper(firstname[0]) + firstname.Substring(1);
+            lastname = Request.Form["lastname"];
+            var lastUp = char.ToUpper(lastname[0]) + lastname.Substring(1);
+
+            if (Validation.IsValid())
+            {
+                if (hasLocalAccount)
+                {
+                    if (WebSecurity.ChangePassword(clientEmail, currentPassword, newPassword))
+                    {
+                        Response.Redirect("~/Premium/Management");
+                        return;
+                    }
+                    else
+                    {
+                        ModelState.AddFormError("An error occurred when attempting to change the password. Please contact the site owner.");
+                    }
+                }
+            }
+            else
+            {
+                ModelState.AddFormError("Password change was unsuccessful. Please correct the errors and try again.");
+            }
+        }
+    }
+}
+
+<hgroup class="title">
+    <h1>@Page.Title.</h1>
+    <h2>Create a new account.</h2>
+</hgroup>
+
+<form method="post">
+    @AntiForgery.GetHtml()
+    @* If at least one validation error exists, notify the user *@
+    @Html.ValidationSummary("Account creation was unsuccessful. Please correct the errors and try again.", excludeFieldErrors: true, htmlAttributes: null)
+
+    @if (!successMessage.IsEmpty()) {
+    <p class="message-success">
+        @successMessage
+    </p>
+}
+
+    <fieldset>
+        <legend>Registration Form</legend>
+        <ol>
+               <li>
+                <label>Client Email</label>
+                <input type="text" id="clientEmail" name="clientEmail" value="@clientEmail"  @Validation.For("clientEmail")) />
+                   @Html.ValidationMessage("clientEmail")
+            </li>
+            <li>
+                <label>First Name</label>
+                <input type="text" id="firstname" name="firstname" value="@firstname"  @Validation.For("firstname")) />
+                   @Html.ValidationMessage("firstname")
+            </li>
+            <li>
+                <label>Last Name</label>
+                <input type="text" id="lastname" name="lastname" value="@lastname"  @Validation.For("lastname")) />
+                @Html.ValidationMessage("lastname")
+            </li>
+            <li class="password">
+                <label for="password" @if(!ModelState.IsValidField("password")) {<text>class="error-label"</text>}>Password</label>
+                <input type="password" id="password" name="password" @Validation.For("password") />
+                @* Write any password validation errors to the page *@
+                @Html.ValidationMessage("password")
+            </li>
+            <li class="confirm-password">
+                <label for="confirmPassword" @if(!ModelState.IsValidField("confirmPassword")) {<text>class="error-label"</text>}>Confirm password</label>
+                <input type="password" id="confirmPassword" name="confirmPassword" @Validation.For("confirmPassword") />
+                @* Write any password validation errors to the page *@
+                @Html.ValidationMessage("confirmPassword")
+            </li>
+            <li>
+                <label>Reassign Client To Peer:</label>
+                <a href="~/Premium/Reassign to Peer/@clientID">Reassign to Peer</a>
+            </li>
+        </ol>
+        <input type="submit" value="Update Info" />
+    </fieldset>
+</form>

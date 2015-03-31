@@ -1,0 +1,191 @@
+﻿@{
+    Layout = "~/_SiteMain.cshtml";
+    Page.Title = "Main Page";
+    
+    if(WebSecurity.CurrentUserName == "")
+    {
+        Response.Redirect("~/Account/Login");   
+    }
+    
+    var firstname = "";
+    var lastname = "";
+    var email = WebSecurity.CurrentUserName;
+    var userid = WebSecurity.CurrentUserId;
+    dynamic bestPlan = null;
+    dynamic bestCase = null;
+ 
+    
+      var db = Database.Open("StarterSite");
+
+            // Check if user already exists
+            var user = db.QuerySingle("SELECT * FROM UserProfile WHERE LOWER(Email) = LOWER(@0)", email);
+            
+            
+            var roles = (SimpleRoleProvider)Roles.Provider;
+
+        if(roles.GetRolesForUser(email).Contains("Client"))
+        {
+            Response.Redirect("~/Premium/ClientHome");   
+        }
+        
+        if(user.Disabled)
+        {
+            Response.Redirect("~/Account/Disabled Account");   
+        }
+            
+            var newFriend = db.Query("SELECT [UserProfile].* FROM [UserProfile] INNER JOIN [PeerNet] ON [UserProfile].[UserId]=[PeerNet].[UserId] WHERE [PeerNet].[PeerId]=@0 AND [PeerNet].[isfriend]=@1 AND [PeerNet].[isaccepted]=@2 AND [PeerNet].[blocked]=@3 AND [UserProfile].[Disabled]=@4", userid, true, false, false, false).ToList();
+            var inbox = db.Query("SELECT [Messages].[id], [Messages].[messageTitle], [UserProfile].[firstName], [UserProfile].[lastName], [Mail].* FROM [Mail] INNER JOIN [Messages] ON [Messages].[id]=[Mail].[Emailid] INNER JOIN [UserProfile] ON [Messages].[senderId]=[UserProfile].[UserId] WHERE [Mail].[UserId]=@0 AND [Mail].[isRead]=@1 AND [Mail].[isReceive]=@2", userid, false, true).ToList();
+            var findMaxP = db.QueryValue("SELECT MAX([favorite]) FROM [Plans]");
+            if (findMaxP != 0)
+            {
+            int findMax_P = findMaxP;
+            bestPlan = db.QuerySingle("SELECT * FROM [Plans] WHERE [favorite]=@0 AND [visibility]>0", findMax_P);
+            }
+            var findMaxC = db.QueryValue("SELECT MAX([favorite]) FROM [CaseStudies]");
+            if (findMaxC != 0)
+            {
+            int findMax_C = findMaxC;
+            bestCase = db.QuerySingle("SELECT * FROM [CaseStudies] WHERE [favorite]=@0 AND [visibility]>0", findMax_C);
+            }
+            var recommendItem = db.Query("SELECT [UserProfile].[firstName], [UserProfile].[lastName], [Products].* FROM [Products] INNER JOIN [RecommendTable] ON [RecommendTable].[ProductId]=[Products].[id] INNER JOIN [UserProfile] ON [UserProfile].[UserId] = [Products].[UserId] AND [UserProfile].[UserId] = [RecommendTable].[ReceiverId] WHERE [RecommendTable].[wasSeen]=@0 AND [Products].[isAvailable]=@1 AND [RecommendTable].[ReceiverId]=@2", false, true,userid).ToList();  
+            if (user != null) {
+                firstname = user.firstName;
+                lastname = user.lastName;         
+            }
+         }
+    
+
+@section featured {
+<section class="featured">
+    <div class="content-wrapper">
+        <hgroup class="title">
+            <h1>@Page.Title.</h1>
+            <h2>Sharapist: A Network For Therapy</h2>
+        </hgroup>
+        <div/>
+        <h3>     Welcome back <a class="email" href="~/Settings" title="Manage">@firstname @lastname</a>!</h3>
+        <h2>Notifications</h2>
+        <fieldset>
+            <legend>Notifications</legend>
+            <ul style="list-style: none; max-height: 300px">
+                <li><label style="font:bold">Awaiting Peer Acceptance</label></li>
+                @if (newFriend.Count() > 0)
+                {
+                foreach (var item in newFriend)
+                {
+                   <li style="display: inline; margin-left: 4px">
+                        @if (item.ProfileImageMIME != null)
+                            {
+                              <img alt="Images from @item.firstName @item.lastName" height="50" width="50" src="~/Dynamic/PeerImage/@item.UserId" class="thumbnail-no-border" />
+                            }
+                            else
+                            {
+                            <img style="border:solid" src="~/Images/DefaultProfile.png" alt="Default Profile Image" height="50"  width="50" />  
+                            }
+                        <a href="~/Profile/PeerView/@item.UserId" style="font:bold 13px arial,verdana">@item.firstName @item.lastName</a>
+                   </li> 
+                }
+                }
+                else
+                {
+                 <li>
+                     <label>No Peer Acceptance Request Pending!</label>
+                 </li>   
+                }
+                </ul>
+            <br />
+            <ul style="list-style: none; max-height: 300px">
+               <li><label style="font:bold">New Message</label></li>
+                
+                @if (inbox.Count() > 0)
+                {
+                foreach (var item in inbox)
+                { 
+                    if (item.isRead==false)
+                    {
+                    <li style="margin-left: 4px">
+                        <a href="~/Messaging/ViewMessage_Inbox/@item.id">@item.firstName @item.lastName Subject: @item.messageTitle</a>
+                    </li>
+                }
+                }
+                }
+                else
+                {
+                   <li>
+                        <label>No new messages today.</label>
+                    </li> 
+                }
+                </ul>
+            <br />
+            
+            <ul style="list-style: none; max-height: 300px">
+                <li><label style="font:bold">Most Liked Plans</label></li>
+                @if (bestPlan != null)
+             {
+                <li style="display:inline; margin-left: 4px">
+                    @if (bestPlan.PlanImageMIME != null)
+                                            {
+                        <a href="~/Plan/PeerPlan/@bestPlan.id">
+                                     <img  height="30" width="30" alt="Plan Image" src="~/Plan/downloadPlanImage/@bestPlan.id" class="thumbnail-no-border" />
+                            </a>                
+                            }
+                                            else
+                                            {
+                        <a href="~/Plan/PeerPlan/@bestPlan.id">
+                                    <img src="~/Images/QuestionMark.png" alt="Default Plan Image" height="30"  width="30" />   
+                            </a>
+                                            }  
+                    <a href="~/Plan/PeerPlan/@bestPlan.id" style="font:bold 13px arial,verdana">@bestPlan.name</a>
+                </li>
+                }
+                else
+                {
+                    <li>
+                        <label>No plans available.</label>
+                    </li> 
+                }
+                </ul>
+          
+            <br />
+            
+            
+            <ul style="list-style: none; max-height: 300px">
+                <li><label style="font:bold">Most Liked Case</label></li>
+                @if (bestCase != null)
+                {
+                <li style="margin-left: 4px">
+                     <a href="~/CaseStudy/PeerCase/@bestCase.id" style="font:bold 13px arial,verdana">@bestCase.name</a>
+                </li>
+                }
+                else
+                {
+                    <li>
+                        <label>No cases available.</label>
+                    </li> 
+                }
+            </ul>
+                <br />
+            
+           <ul style="list-style: none; max-height: 300px">
+               <li><label style="font:bold">Recommended Products</label></li>
+                
+                @if (recommendItem.Count() > 0)
+                {
+                foreach (var item in recommendItem)
+                { 
+                    <li style="margin-left: 4px">
+                        <a href="~/MarketPlace/ItemRecom/@item.id">@item.firstName @item.lastName Item: @item.Name</a>
+                    </li>
+                }
+                }
+                else
+                {
+                   <li>
+                        <label>No new recommended products.</label>
+                    </li> 
+                }
+                </ul>
+        </fieldset>
+        </div>
+    </section>
+        }

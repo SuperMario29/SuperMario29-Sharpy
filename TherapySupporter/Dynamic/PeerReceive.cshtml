@@ -1,0 +1,21 @@
+﻿@{
+    if (WebSecurity.CurrentUserName == "")
+    {
+        Response.Redirect("~/Account/Login");
+    } 
+    var db = Database.Open("StarterSite");
+    var userID = WebSecurity.CurrentUserId;
+    
+    var search = Request["term"] + "%";
+
+    var peerQue = db.Query("SELECT [UserProfile].[firstName], [UserProfile].[lastName] FROM [UserProfile] INNER JOIN [PeerNet] ON [UserProfile].[UserId]=[PeerNet].[UserId] OR [UserProfile].[UserId]=[PeerNet].[PeerId]  WHERE ([PeerNet].[UserId]=@0 AND [PeerNet].[isfriend]=@1 AND [PeerNet].[isaccepted]=@2 AND [PeerNet].[blocked]=@3 AND ([UserProfile].[firstName] LIKE @4 OR [UserProfile].[lastName] LIKE @4)) OR ([PeerNet].[PeerId]=@0 AND [PeerNet].[isfriend]=@1 AND [PeerNet].[isaccepted]=@2 AND [PeerNet].[blocked]=@3 AND ([UserProfile].[firstName] LIKE @4 OR [UserProfile].[lastName] LIKE @4))", userID, true, true, false, search).ToList();
+
+    List<String> list_peer = new List<string>();
+
+    foreach (var item in peerQue)
+    {
+        list_peer.Add("" + item.firstName + " " + item.lastName);
+    }
+
+    Json.Write(list_peer, Response.Output);
+}

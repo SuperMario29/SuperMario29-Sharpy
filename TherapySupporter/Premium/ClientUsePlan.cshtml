@@ -1,0 +1,233 @@
+﻿
+@section Scripts {
+     <script src="~/Scripts/chosen.jquery.js" type="text/javascript"></script>
+     <script type="text/javascript"> $(".chzn-select").chosen(); $(".chzn-select-deselect").chosen({ allow_single_deselect: true }); </script>
+}
+
+@{
+    Layout = "~/_SiteClient.cshtml";
+    Page.Title = "Use Exercise Plan";
+    if (WebSecurity.CurrentUserName == "")
+    {
+        Response.Redirect("~/Account/Login");
+    }
+
+    // Initialize general page variables
+    var isCheck = "";
+    var exerciseID = "";
+    var exerciseName = "";
+    var detailExercise = "";
+    var picture = "";
+    var video = "";
+    var PositionID = 0;
+    var userResult = Request.Unvalidated("userResults");
+    var countLimit = 2000;
+    var userName = WebSecurity.CurrentUserName;
+    var userID = WebSecurity.CurrentUserId;
+    var roles = (SimpleRoleProvider)Roles.Provider;
+    var Result = Request.Unvalidated("userResults");
+    List<dynamic> category = new List<dynamic>();
+
+
+
+    if (!roles.GetRolesForUser(userName).Contains("Client"))
+    {
+        Response.Redirect("~/Home");
+    }
+    
+    Response.OutputCache(60);
+    
+    if(!UrlData[0].IsInt())
+    {
+        Response.Redirect("~/Premium/ClientHome");
+    }
+
+    var plan = UrlData[0].AsInt();
+    
+    var db = Database.Open("StarterSite");
+
+    var user = db.QueryValue("SELECT [Disabled] FROM UserProfile WHERE LOWER(Email) = LOWER(@0)", userName);
+
+    if (user)
+    {
+        Response.Redirect("~/Account/Disabled Account");
+    }
+
+    var findOwner = db.QuerySingle("SELECT [UserProfile].*, [PlanPrem].[name], [PlanPrem].[Category] FROM [UserProfile] INNER JOIN [PlanPrem] ON [UserProfile].[UserId]=[PlanPrem].[therapistId] WHERE [PlanPrem].[id]=@0", plan);
+
+    if (findOwner.Category != null)
+    {
+        foreach(var item in findOwner.Category.Split(','))
+        {
+            category.Add(item);   
+        }
+    }
+    
+    var data = db.Query("SELECT [id], [name], [isComplete] FROM [ExercisePrem] WHERE [clientId]=@0 AND [planId]=@1 ORDER BY [Position]", userID, plan);
+
+    PositionID = data.Count();
+
+    
+    if (IsPost)
+    {
+
+        exerciseID = Request.Form["hiddenID"];
+        isCheck = Request.Form["updateCheck"];
+        Result = Request.Unvalidated("userResults");
+        
+        var exQuery = db.QuerySingle("SELECT * FROM [ExercisePrem] WHERE [id]=@0", exerciseID);
+        
+        if (Request.Form["updateForm"] != null && Request.Form["updateForm"] != "")
+        {
+            exerciseName = exQuery.name;
+            detailExercise = exQuery.detail;
+            video = exQuery.video;
+            picture = exQuery.ExerciseImageMIME;
+            userResult = exQuery.userResults;
+        if(userResult != null)
+        {
+            countLimit = countLimit - exQuery.userResults.Length;
+        }
+        }
+
+
+        if (isCheck != "")
+        {
+            bool checker = false;
+
+            if (isCheck == "false")
+            {
+                checker = true;
+            }
+            db.Execute("UPDATE [ExercisePrem] SET [isComplete]=@0, [userResults]=@1, [timestamp]=@2 WHERE [id]=@3", checker, Result, System.DateTime.Now, exerciseID);
+            isCheck = "";
+            var findExercise = db.Query("SELECT [isComplete] FROM [ExercisePrem] WHERE [clientId]=@0 AND [planId]=@1 ORDER BY [Position]", userID, plan);
+ 
+            
+            var count = 0;
+            foreach (var item in findExercise)
+            {
+                if (item.isComplete == false)
+                {
+                    count++;
+                }
+            }
+
+            if (count == 0)
+            {
+                db.Execute("UPDATE [PlanPrem] SET [isComplete]=@0, [timestamp]=@1 WHERE [id]=@2", true, System.DateTime.Now, plan);
+            }
+            else
+            {
+                db.Execute("UPDATE [PlanPrem] SET [isComplete]=@0, [timestamp]=@1 WHERE [id]=@2", false, System.DateTime.Now, plan); 
+            }
+
+            data = db.Query("SELECT [id], [name], [isComplete] FROM [ExercisePrem] WHERE [clientId]=@0 AND [planId]=@1 ORDER BY [Position]", userID, plan);
+
+            PositionID = data.Count();
+        }
+    }
+}
+
+@section featured {
+<section class="featured"> 
+     <div class="content-wrapper">  
+<hgroup class="title">
+            <h1>@Page.Title.</h1>
+            <h2>Sharapist: A Network For Therapy</h2>
+</hgroup>
+ <section id="ExerciseForm"> 
+            <form method="post" id="form1" name="form1" enctype="multipart/form-data">
+              <label>Created by: @findOwner.firstName @findOwner.lastName</label>
+                <br />
+                <label>Plan Name: @findOwner.name</label>
+                <br />
+                <label>Plan Category</label>
+                <select data-placeholder="Category" name="tocat" id="tocat" style="width:500px; list-style: none;" multiple class="chzn-select" tabindex="8">
+                    @if(category != null)
+                    {
+                    foreach(var item in category)
+                    {
+                      <option id="@item" selected="selected" value="@item">@item</option>  
+                    }
+                    }
+                </select>
+             <div>
+                <ul style="list-style: none">
+                    <li>
+            <h2>Available Exercise: </h2>
+                        <table style="max-height: 300px; max-width: 300px">
+                            <tr>
+                                <th>
+                                    Exercise
+                                </th>
+                            </tr>
+              @foreach (var exercise in data)
+                {
+                  <tr>
+                      @if(exercise.isComplete)
+                      {
+                      <td> <input type="checkbox" checked="checked" name="isCheck" onchange="changeStatus(@exercise.id,true)" /></td>
+                      }
+                      else
+                      {
+                      <td> <input type="checkbox" name="isCheck" onchange="changeStatus(@exercise.id,false)" /></td>  
+                      }
+                      <td>
+                          <a href="#" title="@exercise.name" onclick="PopulateClientExercise(this,@exercise.id)">@exercise.name</a>
+                      </td>
+                  </tr>
+                }
+           </table>
+                        <input type="hidden" id="updateForm" name="updateForm" />
+                        <input type="hidden" id="updateCheck" name="updateCheck" />
+                    </li>
+                    </ul>
+                 </div>
+                <div>
+                            <ul style="list-style: none">
+                        <li class="ExerciesName">
+                <label>Exercise Name: </label>
+                <input type="text" id="exerciseName" name="exerciseName" value="@exerciseName" />
+                <input type="hidden" id="hiddenID" name="hiddenID" value="@exerciseID" />
+                            </li>
+                        <li class="Details">
+                 <label>Details: </label>
+                <textarea name="detailExercise"  id="detailExercise" style="height:150px">@detailExercise</textarea>
+                            </li>
+                        <li>
+                <label>Demonstration: </label>
+                 @if (IsPost && picture != null) {
+                      <img width="400" height="300" src="~/Plan/downloadExerciseImg.cshtml/@exerciseID" alt=""  />
+                    }
+                    else {
+
+                    }
+                    }
+                            </li>
+                        <li style="border-bottom: 5px solid white">
+                <label>Video: </label>
+                @if (IsPost && video != "")
+                {
+             
+<iframe class="youtube-player" type="text/html" width="500" height="365" src="http://www.youtube.com/embed/@video" frameborder="1">
+                </iframe>                 }
+                            </li>
+                                <li>
+                                    <label>User Results:</label>
+                                    <textarea id="userResults" name="userResults" onKeyDown="limitText(this.form.userResults,this.form.countdown,2000);" 
+                onKeyUp="limitText(this.form.userResults,this.form.countdown,2000);" maxlength="2000">@userResult</textarea>
+                                    <br />
+                    <font size="1">(Maximum characters: 2000)<br>
+                You have <input readonly="" type="text" name="countdown" size="3" value="@countLimit"> characters left.</font>
+                       @if(!Result.IsEmpty()){
+                                @(new HtmlString(Result.ToString().AsSafeHtml()))
+                            }
+                                </li>
+                    </ul> 
+                    </div>
+                </form>
+        </section>
+      </div>
+    </section>
+    }

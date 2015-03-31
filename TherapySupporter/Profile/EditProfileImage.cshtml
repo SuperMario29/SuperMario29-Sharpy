@@ -1,0 +1,73 @@
+﻿@{
+    Layout = "~/_SiteMain.cshtml";
+    Page.Title = "Edit Profile Picture";
+    if (WebSecurity.CurrentUserName == "")
+    {
+        Response.Redirect("~/Account/Login");
+    }
+    
+    var userName = WebSecurity.CurrentUserName;
+    var fileName = "";
+    var fileMime = "";
+    var userID = WebSecurity.CurrentUserId;
+    var roles = (SimpleRoleProvider)Roles.Provider;
+
+    if (roles.GetRolesForUser(userName).Contains("Client"))
+    {
+        Response.Redirect("~/Premium/ClientHome");
+    }
+    
+    var db = Database.Open("StarterSite");
+    
+    var user = db.QueryValue("SELECT [Disabled] FROM UserProfile WHERE LOWER(Email) = LOWER(@0)", userName);
+
+    if (user)
+    {
+        Response.Redirect("~/Account/Disabled Account");
+    }
+
+     if(IsPost)
+            {
+                var uploadedFile = Request.Files[0];
+                fileName = Path.GetFileName(uploadedFile.FileName);
+                if (fileName != String.Empty)
+                {
+                    fileMime = uploadedFile.ContentType;
+                    var fileStream = uploadedFile.InputStream;
+                    var fileLength = uploadedFile.ContentLength;
+                    byte[] fileContent = new byte[fileLength];
+                    fileStream.Read(fileContent, 0, fileLength);
+
+                    db.Execute("UPDATE UserProfile SET  [ProfileImage]=@0, [ProfileImageName]=@1, [ProfileImageMIME]=@2 WHERE [UserID] = @3", fileContent, fileMime, fileName, userID);
+                }
+    
+}
+}
+
+@section featured {
+<section class="featured">
+<div class="content-wrapper">
+<form method="post" enctype="multipart/form-data">
+    <fieldset id="">
+        <legend>Edit Profile Image</legend>
+           <img src="~/Dynamic/downloadImage.cshtml" alt="" heigh="300px" width="300px" />
+        <div>Upload image: 
+                @FileUpload.GetHtml(
+                initialNumberOfFiles:1, allowMoreFilesToBeAdded:false, includeFormTag:true)
+            </div>
+        @if (IsPost && fileName != String.Empty) {
+            <span>File uploaded!</span><br/>
+            if(fileMime.StartsWith("image"))
+             {
+           <img src="~/Dynamic/downloadImage.cshtml" alt="" height="300px" width="300px" />
+             }
+        else {
+            <a href="~/Dynamic/downloadImage.cshtml">Click Here</a>
+        }
+        }
+
+    </fieldset>
+    </form>
+    </div>
+    </section>
+    }

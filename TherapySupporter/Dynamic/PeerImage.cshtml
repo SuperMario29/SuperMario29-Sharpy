@@ -1,0 +1,22 @@
+﻿@{    
+     Response.OutputCache(60);
+     if(UrlData[0].IsInt())
+     {
+    var peerID = UrlData[0].AsInt();
+    
+    var db = Database.Open("StarterSite");
+    
+    var sql = "Select * FROM UserProfile Where UserID = @0";
+    var file = db.QuerySingle(sql, peerID);
+    if (file.ProfileImageMIME.StartsWith("image/"))
+    {
+        Response.AddHeader("content-disposition", "inline; filename=" + file.ProfileImageName);
+    }
+    else
+    {
+        Response.AddHeader("content-disposition", "attachment; filename=" + file.ProfileImageName);
+    }
+    Response.ContentType = file.ProfileImageMIME;
+    Response.BinaryWrite((byte[])file.ProfileImage);
+     }
+}

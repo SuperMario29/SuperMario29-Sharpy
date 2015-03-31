@@ -1,0 +1,116 @@
+﻿@{
+    Layout = "~/_SiteMain.cshtml";
+    Page.Title = "Peer Search";
+    if (WebSecurity.CurrentUserName == "")
+    {
+        Response.Redirect("~/Account/Login");
+    }
+
+    // Initialize general page variables
+    var firstName = "";
+    var lastName = "";
+    var userName = WebSecurity.CurrentUserName;
+    var userID = WebSecurity.CurrentUserId;
+    
+    Response.OutputCache(60);
+
+    if (UrlData[0].IsEmpty())
+    {
+        Response.Redirect("~/Home");
+    }
+
+    var search = UrlData[0];
+
+    var roles = (SimpleRoleProvider)Roles.Provider;
+
+    if (roles.GetRolesForUser(userName).Contains("Client"))
+    {
+        Response.Redirect("~/Premium/ClientHome");
+    }
+    
+    var db = Database.Open("StarterSite");
+    var user = db.QueryValue("SELECT [Disabled] FROM UserProfile WHERE LOWER(Email) = LOWER(@0)", userName);
+
+    if (user)
+    {
+        Response.Redirect("~/Account/Disabled Account");
+    } 
+    
+    var commands = search.Split(' ');
+    
+    firstName = commands[0];
+    
+    if(firstName != "")
+    {
+        firstName = char.ToUpper(firstName[0]) + firstName.Substring(1);
+    }
+    
+   if (commands.Count() > 1)
+   {
+    lastName = commands[1];
+   }
+
+   System.Collections.Generic.IEnumerable<dynamic> data = new List<dynamic>();
+    
+    if (lastName != "")
+    {
+        lastName = char.ToUpper(lastName[0]) + lastName.Substring(1);
+
+        data = db.Query("SELECT [UserProfile].* FROM [UserProfile] INNER JOIN [PeerNet] on [PeerNet].[PeerId]=[UserProfile].[UserId] OR [UserProfile].[UserId]=[PeerNet].[PeerId] WHERE [UserProfile].[firstName] LIKE @0 AND [UserProfile].[lastName] LIKE @1 AND [UserProfile].[hasTherapist] is NULL AND ([UserProfile].[visibility]=2 OR [PeerNet].[isaccepted]=@2) AND [UserProfile].[Disabled]=@3", firstName.Trim(), lastName.Trim(), true, false);
+    }
+    else
+    {
+        data = db.Query("SELECT [UserProfile].* FROM [UserProfile] INNER JOIN [PeerNet] on [PeerNet].[PeerId]=[UserProfile].[UserId] OR [UserProfile].[UserId]=[PeerNet].[PeerId] WHERE [UserProfile].[firstName] LIKE @0 OR [UserProfile].[lastName] LIKE @0 AND [UserProfile].[hasTherapist] is NULL AND ([UserProfile].[visibility]=2 OR [PeerNet].[isaccepted]=@1) AND [UserrProfile].[Disabled]=@2", firstName.Trim(), true, false);
+    }
+    
+    }
+
+
+@section featured {
+<section class="featured"> 
+     <div class="content-wrapper">  
+<hgroup class="title">
+            <h1>@Page.Title.</h1>
+            <h2>Sharapist: A Network For Therapy</h2>
+</hgroup>
+         <form method="post" id="form1" name="form1" enctype="multipart/form-data">
+            <h2>Search Results By Peer: </h2>
+                        <div id="list-search">
+                  @if (data.Count() > 0)
+                  {
+                  <ul>
+                  @foreach (var peer in data)
+                {
+                    <li onclick="goToPeer(@peer.UserId)">
+                         @if (peer.ProfileImageMIME != null)
+                         {
+                        <img alt="Images from @peer.firstName @peer.lastName" style="height: 45px; width: 45px" src="~/Dynamic/PeerImage/@peer.UserId" class="thumbnail-no-border" />
+                         }
+                        else
+                         {
+                           <img src="~/Images/DefaultProfile.png" alt="" height="30"  width="30" />   
+                         } 
+                        <a href="~/Profile/PeerView/@peer.UserId" style="font:bold 15px arial,verdana; vertical-align: central;">@peer.firstName @peer.lastName</a>
+                        @if(peer.Disabled)
+                {
+                    <label>Occupation: @peer.Occupation-Direct Access Certified</label>
+                }
+                else
+                {
+                    <label>Occupation: @peer.Occupation</label>
+                }
+                        <label>Company/Business: @peer.Company</label>
+                        <label>Location: @peer.City,@peer.stateProvider</label>
+                    </li>
+                }
+                  </ul>
+                  }
+                  else
+                  {
+                    <label>No Peers Found!!</label>  
+                  }
+                            </div>
+        </form>
+      </div>
+    </section>
+    }

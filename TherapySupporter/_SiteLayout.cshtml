@@ -1,0 +1,120 @@
+﻿@using System.Web.Optimization;
+
+<!DOCTYPE html>
+<html lang="en">
+    <head>
+        <meta charset="utf-8" />
+        <title>@Page.Title - Sharapist: A Network For Therapy</title>
+        <link href="~/favicon.ico" rel="shortcut icon" type="image/x-icon" />
+        @Scripts.Render("~/bundles/jquery", "~/bundles/knockout", "~/bundles/modernizr")
+        @Styles.Render("~/bundles/css", "~/bundles/jquery-css")
+        <meta name="viewport" content="width=device-width" />
+        <meta name="description" content="Social Network for Physical Therapist; Social Network for Occpuational Therapist; Social Network for Personnel Trainers.">
+    </head>
+    <body>
+    <script type="text/javascript">
+        var timeout = 500;
+        var closetimer = 0;
+        var ddmenuitem = 0;
+
+        function ddmenu_open() {
+            ddmenu_canceltimer();
+            ddmenu_close();
+            ddmenuitem = $(this).find('ul').css('visibility', 'visible');
+        }
+
+        function ddmenu_close() {
+            if (ddmenuitem) ddmenuitem.css('visibility', 'hidden');
+        }
+
+        function ddmenu_timer() {
+            closetimer = window.setTimeout(ddmenu_close, timeout);
+        }
+
+        function ddmenu_canceltimer() {
+            if (closetimer) {
+                window.clearTimeout(closetimer);
+                closetimer = null;
+            }
+        }
+
+        $(document).ready(function () {
+            $('#ddmenu > li').bind('mouseover', ddmenu_open)
+            $('#ddmenu > li').bind('mouseout', ddmenu_timer)
+        });
+
+        document.onclick = ddmenu_close;
+    </script>
+
+        <header>
+            <div class="content-wrapper">
+                <div class="float-left">
+                    <p class="site-title"><a href="~/">
+                        <img src="~/Images/Sharapist.PNG" width="300" height="100" alt="logo for Sharapist.com"/></a></p>
+                </div>
+                <div class="float-right">
+                    <section id="login">
+                        @if (WebSecurity.IsAuthenticated) {
+                            <text>
+                                Hello, <a class="email" href="~/Settings" title="Manage">@WebSecurity.CurrentUserName</a>!
+                                <form id="logoutForm" action="~/Account/Logout" method="post">
+                                    @AntiForgery.GetHtml()
+                                    <a href="javascript:document.getElementById('logoutForm').submit()">Log out</a>
+                                </form>
+                            </text>
+                        } else {
+                            <ul>
+                                <li><a href="~/Account/Register">Register</a></li>
+                                <li><a href="~/Account/Login">Log in</a></li>
+                            </ul>
+                        }
+                    </section>
+                    <nav>
+                        <ul id="ddmenu">
+                            <li><a href="~/">
+                                <img src="~/Images/Home.png" title="Home" style="height:30px" />
+                                </a></li>
+                            <li><a href="#">
+                               <img src="~/Images/Profile.png" title="Find Person" style="height:30px" />
+                                </a>
+                                <ul>
+                                    <li><a href="~/FindPeople">Name</a></li>
+                                    <li><a href="~/FindLocation">Location</a></li>
+                                </ul>
+                            </li>
+                            <li><a href="#">
+                               <img src="~/Images/Folder.png" title="Share Info" style="height:30px" />
+                                </a>
+                                <ul>
+                                    <li><a href="~/PTInfo">Physical</a></li>
+                                    <li><a href="~/OTInfo">Occupational</a></li>
+                                    <li><a href="~/PersonalTInfo">Personal</a></li>
+                                </ul>
+                            </li>
+                            <li><a href="~/MarketPlace/MarketPlace">
+                                <img src="~/Images/Cart.png" title="Market Place" style="height:30px" />
+                            </a></li>
+                            <li><a href="~/About">
+                                <img src="~/Images/QuestionMark.png" title="About" style="height:30px" />
+                            </a></li>
+                        </ul>
+                        </nav>
+                </div>
+            </div>
+        </header>
+        <div id="body">
+            @RenderSection("featured", required: false)
+            <section class="content-wrapper main-content clear-fix">
+                @RenderBody()
+            </section>
+        </div>
+        <footer>
+            <div class="content-wrapper">
+                <div class="float-left">
+                    <p>&copy; @DateTime.Now.Year - Sharapist: A Network For Therapy</p>
+                </div>
+            </div>
+        </footer>
+        @RenderSection("Scripts", required: false)
+    </body>
+</html>

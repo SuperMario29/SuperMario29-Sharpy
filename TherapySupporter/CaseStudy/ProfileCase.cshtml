@@ -1,0 +1,107 @@
+﻿@section Scripts {
+     <script src="~/Scripts/chosen.jquery.js" type="text/javascript"></script>
+     <script type="text/javascript"> $(".chzn-select").chosen(); $(".chzn-select-deselect").chosen({ allow_single_deselect: true }); </script>
+}
+
+@{
+    Layout = "~/_SiteMain.cshtml";
+    Page.Title = "Peer's Case Study";
+    if (WebSecurity.CurrentUserName == "")
+    {
+        Response.Redirect("~/Account/Login");
+    }
+    
+    var caseName = "";
+    var caseInfo = "";
+    var caseNotes = "";
+    var userID = WebSecurity.CurrentUserId;
+    var roles = (SimpleRoleProvider)Roles.Provider;
+    var userName = WebSecurity.CurrentUserName;
+    List<dynamic> category = new List<dynamic>();
+
+
+    if (roles.GetRolesForUser(userName).Contains("Client"))
+    {
+        Response.Redirect("~/Premium/ClientHome");
+    }
+    Response.OutputCache(60);
+
+    if(!UrlData[0].IsInt())
+    {
+        Response.Redirect("~/Home");
+    }
+    
+    var caseP = UrlData[0].AsInt();
+
+    var db = Database.Open("StarterSite");
+
+    var user = db.QueryValue("SELECT [Disabled] FROM UserProfile WHERE LOWER(Email) = LOWER(@0)", userName);
+
+    if (user)
+    {
+        Response.Redirect("~/Account/Disabled Account");
+    }
+
+    var findOwner = db.QuerySingle("SELECT [UserProfile].*, [CaseStudies].[name], [CaseStudies].[Category] FROM [UserProfile] INNER JOIN [CaseStudies] ON [UserProfile].[UserId]=[CaseStudies].[UserId] WHERE [CaseStudies].[id]=@0", caseP);
+
+    if (findOwner.Category != null)
+    {
+        foreach (var item in findOwner.Category.Split(','))
+        {
+            category.Add(item);
+        }
+    }
+    
+    var caseQue = db.QuerySingle("SELECT * FROM [CaseStudies] WHERE [id]=@0 AND [UserId]=@1", caseP, userID);
+
+    caseName = caseQue.name;
+    caseInfo = caseQue.information;
+    caseNotes = caseQue.notes;
+    if (caseQue.Category != null)
+    {
+        category = caseQue.Category.Split(',');
+    }
+}
+
+@section featured {
+<section class="featured">
+    <div class="content-wrapper">
+        <hgroup class="title">
+            <h1>@Page.Title.</h1>
+        </hgroup>
+        </div>
+        <section>
+                    <h2>Case Study Information</h2>
+                    <ul>
+                        <li>
+                            <label>Owner: @findOwner.firstName @findOwner.lastName</label>
+                            <button type="button" onclick="caseBorrow(@caseP,@findOwner.UserId)">Borrow Plan?</button>
+                            <label>Case Study Category</label>
+                            <select data-placeholder="Category" name="tocat" id="tocat" style="width:500px; list-style: none;" multiple class="chzn-select" tabindex="8">
+                    @if(category != null)
+                    {
+                    foreach(var item in category)
+                    {
+                      <option id="@item" value="@item">@item</option>  
+                    }
+                    }
+                </select>
+                        </li>
+                    <li>
+                <label>Case Name: </label>
+                <input type="text" id="caseName" value="@caseName" name="caseName"></input>
+                        </li>
+                    <li>
+                <label>Case Information: </label>
+                <textarea name="caseInfo" id="caseInfo">@if(!caseInfo.IsEmpty()){
+                    @caseInfo.ToString().AsSafeHtml()}</textarea>
+                     </li>
+                        <li>
+                <label>Notes: </label>
+                <textarea name="caseNotes" id="caseNotes">@if(!caseInfo.IsEmpty()){
+                    @caseNotes.ToString().AsSafeHtml()}</textarea>
+                            </li>
+                            </ul>
+    </section>
+    </section>
+        }

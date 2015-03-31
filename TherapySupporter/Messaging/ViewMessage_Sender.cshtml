@@ -1,0 +1,214 @@
+﻿@section Scripts {
+     <script src="~/Scripts/chosen.jquery.js" type="text/javascript"></script>
+     <script type="text/javascript"> $(".chzn-select").chosen(); $(".chzn-select-deselect").chosen({ allow_single_deselect: true }); </script>
+}
+
+@{
+    Layout = "~/_SiteMessage.cshtml";
+    Page.Title = "View Message";
+    if (WebSecurity.CurrentUserName == "")
+    {
+        Response.Redirect("~/Account/Login");
+    }
+
+    var getReceiver = 0;
+    var senderName = "";
+    var subject = "";
+    var body = "";
+    var dbody = "";
+    var userID = WebSecurity.CurrentUserId;
+    var userName = WebSecurity.CurrentUserName;
+    var roles = (SimpleRoleProvider)Roles.Provider;
+
+    if (roles.GetRolesForUser(userName).Contains("Client"))
+    {
+        Response.Redirect("~/Premium/ClientHome");
+    }
+
+    Response.OutputCache(60);
+
+    if (!UrlData[0].IsInt())
+    {
+        Response.Redirect("~/Messaging/Sent");
+    }
+
+    var emailid = UrlData[0].AsInt();
+
+    var db = Database.Open("StarterSite");
+
+    var user = db.QueryValue("SELECT [Disabled] FROM UserProfile WHERE LOWER(Email) = LOWER(@0)", userName);
+
+    if (user)
+    {
+        Response.Redirect("~/Account/Disabled Account");
+    } 
+    
+    var Message = db.QuerySingle("SELECT * FROM [Messages] WHERE [id]=@0 AND [senderId]=@1", emailid, userID);
+
+    if (Message == null)
+    {
+        Response.Redirect("~/Messaging/Sent");
+    }
+
+    List<string> ReceiverList = new List<string>();
+    
+    foreach(var item in Message.receiverId.Split(','))
+    {
+        var send = db.QuerySingle("SELECT * FROM [UserProfile] WHERE [UserId]=@0", item);
+        ReceiverList.Add(send.firstName + " " + send.lastName);
+        if(send.firstName == null)
+        {
+            ReceiverList.Add(send.Email); 
+        }
+    }
+
+    bool ismore = true;
+    List<dynamic> list_message = new List<dynamic>();
+    List<string> usingR = new List<string>();
+    var findlink = Message.linkedMessage;
+    if (!Message.isEncrypt)
+    {
+    if (findlink != null)
+    {
+        do
+        {
+            var findmessage = db.QuerySingle("SELECT [Messages].*, [UserProfile].[firstName], [UserProfile].[lastName] FROM [Messages] INNER JOIN [UserProfile] ON [Messages].[senderId]=[UserProfile].[UserId] WHERE [id]=@0", findlink);
+            list_message.Add(findmessage);
+            List<string> Receiver = new List<string>();
+
+            foreach (var item in findmessage.receiverId.Split(','))
+            {
+                var send = db.QuerySingle("SELECT [firstName], [lastName] FROM [UserProfile] WHERE [UserId]=@0", item);
+                Receiver.Add(send.firstName + " " + send.lastName);
+            }
+
+            if (findmessage.linkedMessage == null)
+            {
+                string addReceiver = string.Join(",", Receiver.ToArray());
+                usingR.Add(addReceiver);
+                ismore = false;
+            }
+            else
+            {
+                string addReceiver = string.Join(",", Receiver.ToArray());
+                usingR.Add(addReceiver);
+                findlink = findmessage.linkedMessage;
+            }
+        }
+        while (ismore == true);
+    }
+    }
+
+    senderName = WebSecurity.CurrentUserName;
+    subject = Message.messageTitle;
+    body = Message.message;
+    
+    
+    if (IsPost)
+    {
+
+        if(Request.Form["btnSubmit"]== "Reply")
+        {
+            Response.Redirect("~/Messaging/Reply/"+emailid);
+        }
+        
+        if(Request.Form["btnSubmit"] == "Forward")
+        {
+            Response.Redirect("~/Messaging/Forward/" + emailid);
+        }
+        if(Request.Form["passSubmit"] == "")
+        {
+            var password = Request.Form["decryptPass"];
+
+            var verifyPass = Crypto.VerifyHashedPassword(Message.Password, password);
+            
+            if (verifyPass)
+            {
+                body = Message.message;
+                var decrypt_body = StringCipher.Decrypt(body, password);
+                dbody = decrypt_body;
+            }
+            else
+            {
+                dbody = "Password is not valid";
+            }
+        }
+        
+    }
+}
+
+<section class="featured">
+    <div class="content-wrapper">
+        <hgroup class="title">
+            <h1>@Page.Title.</h1>
+            <h2>Sharapist: A Network For Therapy</h2>
+        </hgroup>
+    <form id="form1" name="form1" method="post">
+                <fieldset>
+                    <legend>New Message</legend>
+                    <ol>
+                        <li>
+                        <label>From: </label>
+                <input type="text" disabled="disabled" id="sender" value="@senderName" name="sender" />
+                        </li>
+                    <li>
+                <label>To: </label>
+                <select disabled="disabled" data-placeholder="Find Peer" name="topeer" id="topeer" style="width:500px; list-style: none;" multiple class="chzn-select" tabindex="8">
+                    @foreach (var item in ReceiverList)
+                    {
+                        <option selected value="@item">@item</option>
+                    }
+                </select>  
+                        </li>
+                    <li>
+                <label>Subject: </label>
+                <input disabled="disabled" type="text" name="subject" id="subject" value="@subject" />
+                     </li>
+                        <li>
+                            @if (Message.isEncrypt)
+                            {
+                <label>Body: </label>
+                <textarea disabled="disabled" name="Dbody" id="Dbody">@dbody</textarea>
+                 <label>Enter Password To Decrypt Message:</label>
+                <input type="password" name="decryptPass" />
+                <input type="submit" value="" name="passSubmit" title="Decrypt Message" style="background-image: url(/Images/Key.png); background-size: 30px; height: 30px; width: 30px" />
+                            }
+                            else
+                            {
+                                <label>Body: </label>
+                <textarea disabled="disabled" name="body" id="body">@body</textarea>
+                            }
+                            </li>
+                            </ol>
+                    </fieldset>
+        @if(!Message.isEncrypt)
+        {
+        <input type="submit" value="Reply" name="btnSubmit" id="reply" />
+        <input type="submit" value="Forward" name="btnSubmit" id="forward" />
+
+        foreach (var item in list_message)
+                         {
+                            <ul style="list-style: none">
+                                <li>
+                                    <label>@item.timestamp</label>
+                                </li>
+                                <li>
+                                    <label>From: @item.firstName @item.lastName</label>
+                                </li>
+                                <li>
+                                    <label>To: @usingR[getReceiver]</label>
+                                </li>
+                                <li>
+                                    <label>Subject: @item.messageTitle</label>
+                                </li>
+                                <li>
+                                    <textarea disabled="disabled">@item.message</textarea>
+                                </li>
+                            </ul>
+                             getReceiver++;
+
+                         }
+        }
+        </form>
+        </div>
+    </section>

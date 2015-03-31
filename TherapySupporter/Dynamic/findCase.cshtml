@@ -1,0 +1,37 @@
+﻿@{
+    if (WebSecurity.CurrentUserName == "")
+    {
+        Response.Redirect("~/Account/Login");
+    }
+    Response.OutputCache(60);
+    if(!UrlData[0].IsEmpty())
+    {
+    var result = UrlData[0];
+        
+    var db = Database.Open("StarterSite");
+    var userID = WebSecurity.CurrentUserId;
+
+    
+    if (result == "Peer")
+    {
+        var peerQue = db.Query("SELECT [UserProfile].[UserId] FROM [UserProfile] INNER JOIN [PeerNet] ON [UserProfile].[UserId]=[PeerNet].[UserId] OR [UserProfile].[UserId]=[PeerNet].[PeerId]  WHERE [PeerNet].[UserId]=@0 AND [PeerNet].[isfriend]=@1 AND [PeerNet].[isaccepted]=@2 AND [PeerNet].[blocked]=@3 OR [PeerNet].[PeerId]=@0 AND [PeerNet].[isfriend]=@1 AND [PeerNet].[isaccepted]=@2 AND [PeerNet].[blocked]=@3", userID, true, true, false).ToList();
+
+        foreach (var item in peerQue)
+        {
+            var caseQue = db.QuerySingle("SELECT * FROM [CaseStudies] WHERE [UserId]=@0", item);
+            Response.Write("<a href='CaseStudy/PeerCase/" + caseQue.id + "'>" + caseQue.name + "</a>");
+        }
+    }
+        
+    else
+    {
+        var findQue = db.Query("SELECT [CaseStudies].* FROM [CaseStudies] INNER JOIN [UserProfile] ON [UserProfile].[UserId]=[CaseStudies].[UserId] WHERE [UserProfile].[stateProvider]=@0", result);
+
+        foreach (var item in findQue)
+        {
+            Response.Write("<a href='CaseStudy/PeerCase/" + item.id + "'>" + item.case_name + "</a>");
+        }
+    }
+
+}
+}

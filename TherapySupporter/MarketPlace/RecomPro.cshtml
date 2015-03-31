@@ -1,0 +1,106 @@
+﻿@section Scripts {
+     <script src="~/Scripts/chosen.jquery.js" type="text/javascript"></script>
+     <script type="text/javascript"> $(".chzn-select").chosen(); $(".chzn-select-deselect").chosen({ allow_single_deselect: true }); </script>
+}
+
+@{
+    Layout = "~/_SiteMain.cshtml";
+    Page.Title = "Recommend Product";
+    if (WebSecurity.CurrentUserName == "")
+    {
+        Response.Redirect("~/Account/Login");
+    }
+
+    var userID = WebSecurity.CurrentUserId;
+    var userName = WebSecurity.CurrentUserName;
+    var roles = (SimpleRoleProvider)Roles.Provider;
+
+    if (roles.GetRolesForUser(userName).Contains("Client"))
+    {
+        Response.Redirect("~/Premium/ClientHome");
+    }
+
+    var db = Database.Open("StarterSite");
+
+    var user = db.QueryValue("SELECT [Disabled] FROM UserProfile WHERE LOWER(Email) = LOWER(@0)", userName);
+
+    if (user)
+    {
+        Response.Redirect("~/Account/Disabled Account");
+    }
+
+    Response.OutputCache(60);
+
+    if (!UrlData[0].IsInt())
+    {
+        Response.Redirect("~/Profile/Profile");
+    }
+
+    var product = UrlData[0].AsInt();
+    
+    var peerQue = db.Query("SELECT [UserProfile].* FROM [UserProfile] INNER JOIN [PeerNet] ON [UserProfile].[UserId]=[PeerNet].[UserId] OR [UserProfile].[UserId]=[PeerNet].[PeerId]  WHERE ([PeerNet].[UserId]=@0 AND [PeerNet].[isfriend]=@1 AND [PeerNet].[isaccepted]=@2 AND [PeerNet].[blocked]=@3) OR ([PeerNet].[PeerId]=@0 AND [PeerNet].[isfriend]=@1 AND [PeerNet].[isaccepted]=@2 AND [PeerNet].[blocked]=@3)", userID, true, true, false).ToList();
+    var clientQue = db.Query("SELECT * FROM [UserProfile] WHERE ([hasTherapist])=@0", userID).ToList();
+    var productQue = db.QuerySingle("SELECT * FROM [Products] WHERE [Products].[id]=@0 AND [Products].[Visibility]=1", product);
+
+    if (productQue == null)
+    {
+        Response.Redirect("~/Profile/Profile");
+    }
+    
+    if (IsPost)
+    {
+
+        var receiverName = Request.Form["topeer"];
+        var timestamp = DateTime.Now;    
+        
+        
+        if(receiverName != null)
+        {
+                
+        foreach (var item in receiverName.Split(','))
+        {
+            db.Execute("INSERT INTO [RecommendTable] ([UserId], [ReceiverId], [ProductId], [timestamp], [wasSeen]) VALUES (@0,@1,@2,@3,@4)", userID, item, product, timestamp, false);
+        } 
+        Response.Redirect("~/Profile/Profile");
+        }
+
+    }
+    }
+
+@*@section featured {*@
+<section class="featured">
+    <div class="content-wrapper">
+        <hgroup class="title">
+            <h1>@Page.Title.</h1>
+            <h2>Sharapist: A Network For Therapy</h2>
+        </hgroup>
+        <div/>
+    <form id="form1" name="form1" method="post" action="">
+                <fieldset>
+                    <legend>Recommend Product</legend>
+                    <ol>
+                        <li>
+                            <label>Product Name:</label>
+                            <p>@productQue.Name</p>
+                        </li>
+                    <li>
+                <label>Recommend To: </label>
+                <select data-placeholder="Find Peer" name="topeer" id="topeer" style="width:500px; list-style: none;" multiple class="chzn-select" tabindex="8">
+                    <optgroup label="Peers">
+                    @foreach (var item in peerQue)
+                    {
+                        <option value="@item.UserID">@item.firstName @item.lastName</option>
+                    }
+                        </optgroup>
+                    <optgroup label="Clients">
+                        @foreach (var item in clientQue)
+                    {
+                        <option value="@item.UserID">@item.firstName @item.lastName</option>
+                    }
+                    </optgroup>
+                </select>                
+                        </li>
+                      </ol>
+                    </fieldset>
+        <input type="submit" value="Recommend Product" name="sendRecom" id="sendRecom" />
+    </section>

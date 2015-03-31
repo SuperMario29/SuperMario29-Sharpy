@@ -1,0 +1,26 @@
+﻿@{    
+    if (WebSecurity.CurrentUserName == "")
+    {
+        Response.Redirect("~/Account/Login");
+    }
+     Response.OutputCache(60);
+     if(UrlData[0].IsInt())
+     {
+    var extraId = UrlData[0].AsInt();
+    
+    var db = Database.Open("StarterSite");
+    
+    var sql = "Select * FROM [Exercise] WHERE id = @0";
+    var file = db.QuerySingle(sql, extraId);
+    if (file.demoImageMIME.StartsWith("image/"))
+    {
+        Response.AddHeader("content-disposition", "inline; filename=" + file.demoImageName);
+    }
+    else
+    {
+        Response.AddHeader("content-disposition", "attachment; filename=" + file.demoImageName);
+    }
+    Response.ContentType = file.demoImageMIME;
+    Response.BinaryWrite((byte[])file.demoImage);
+}
+}

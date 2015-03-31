@@ -1,0 +1,24 @@
+﻿    @{
+        if (WebSecurity.CurrentUserName == "")
+        {
+            Response.Redirect("~/Account/Login");
+        }
+       var userID = WebSecurity.CurrentUserId;
+
+
+    var db = Database.Open("StarterSite");
+
+    db.Execute("DELETE FROM [PeerNet] WHERE [PeerId]=@0 OR [UserId]=@0", userID);
+    
+    db.Execute("DELETE FROM [Plans] WHERE [UserId]=@0", userID);
+    
+    db.Execute("DELETE FROM [CaseStudies] WHERE [UserId]=@0", userID);
+    
+    db.Execute("DELETE FROM [UserProfile] WHERE [UserId]=@0", userID);
+
+    db.Execute("DELETE FROM [PlanPrem] WHERE [UserId]=@0", userID);
+
+    db.Execute("DELETE FROM [Products] WHERE [UserId]=@0", userID);
+
+    Response.Redirect("~/Home");
+}

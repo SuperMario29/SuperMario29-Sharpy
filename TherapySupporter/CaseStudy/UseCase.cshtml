@@ -1,0 +1,135 @@
+﻿@section Scripts {
+     <script src="~/Scripts/chosen.jquery.js" type="text/javascript"></script>
+     <script type="text/javascript"> $(".chzn-select").chosen(); $(".chzn-select-deselect").chosen({ allow_single_deselect: true }); </script>
+}
+
+@{
+    Layout = "~/_SiteMain.cshtml";
+    Page.Title = "Use Case Study";
+    if (WebSecurity.CurrentUserName == "")
+    {
+        Response.Redirect("~/Account/Login");
+    }
+    
+    var caseName = "";
+    var caseInfo = "";
+    var caseNotes = "";
+    var caseID = "";
+    var userID = WebSecurity.CurrentUserId;
+    var roles = (SimpleRoleProvider)Roles.Provider;
+    var userName = WebSecurity.CurrentUserName;
+    List<dynamic> category = new List<dynamic>();
+
+    
+    if (roles.GetRolesForUser(userName).Contains("Client"))
+    {
+        Response.Redirect("~/Premium/ClientHome");
+    }
+
+    var db = Database.Open("StarterSite");
+
+    var user = db.QueryValue("SELECT [Disabled] FROM UserProfile WHERE LOWER(Email) = LOWER(@0)", userName);
+
+    if (user)
+    {
+        Response.Redirect("~/Account/Disabled Account");
+    } 
+    
+    var caseQue = db.Query("SELECT * FROM [CaseStudies] WHERE [UserId]=@0", userID).ToList();
+
+    
+    
+    if (IsPost)
+    {
+        caseID = Request.Form["hiddenID"];       
+        
+        if (caseID != "")
+        {            
+            var exQuery = db.QuerySingle("SELECT * FROM [CaseStudies] WHERE [id]=@0", caseID);
+
+            caseName = exQuery.name;
+            caseInfo = exQuery.information;
+            caseNotes = exQuery.notes;
+            if (exQuery.Category != null)
+            {
+                category = exQuery.Category.Split(',');
+            }
+        }
+    }
+}
+
+@section featured {
+<section class="featured">
+    <div class="content-wrapper">
+        <hgroup class="title">
+            <h1>@Page.Title.</h1>
+        </hgroup>
+        <div />
+    <form id="form1" name="form1" method="post">
+        <section>
+                <h3>Available Case Studies: </h3>
+                <input type="hidden" name="IDhidden" value="" />
+                <input type="hidden" name="favHidden" />
+                          <table style="max-height: 300px; max-width: 400px" id="SelectTable">
+                              <tr>
+                                  <th>Case Study</th>
+                                  <th>Favorite?</th>
+                              </tr>
+                              @foreach (var caseS in caseQue)
+                     {
+                              <tr>
+                                  <td>
+                       <a href="#" style="font:bold 13px arial,verdana" title="@caseS.name" onclick="PopulateCase(@caseS.id,this)">@caseS.name</a>
+                                      </td>
+                                   <td>                                    
+                                  @if(caseS.userFavorite)
+                                        {
+                                                                                
+                                     <img src="~/Images/Heart.png" style="background-size: 30px; height: 30px; width: 30px; opacity: 0.4; filter: alpha(opacity=40);" onclick="userFavoriteCase(@caseS.id,@userID,true,this)"  />
+                                                
+                                        }
+                                         else
+                                         {
+                                            
+                                     <img src="~/Images/Heart.png" onclick="userFavoriteCase(@caseS.id,@userID,false,this)" style="background-size: 30px; height: 30px; width: 30px;"  /> 
+                                        
+                                                 }
+                                       </td>
+                                  </tr>
+                              }
+                              </table>        
+        </section>
+
+        <div id="selDiv">
+                    <h3>Case Study Information</h3>
+                    <ul style="list-style: none">
+                        <li>
+                            <label>Case Study Category</label>
+                            <select data-placeholder="Category" name="tocat" id="tocat" style="width:500px; list-style: none;" multiple class="chzn-select" tabindex="8">
+                    @if(category != null)
+                    {
+                    foreach(var item in category)
+                    {
+                      <option id="@item" value="@item">@item</option>  
+                    }
+                    }
+                </select>
+                        </li>
+                    <li>
+                <label>Case Name: </label>
+                <input type="text" id="caseName" value="@caseName" name="caseName" />
+                <input type="hidden" id="hiddenID" name="hiddenID" value="@caseID" />
+                        </li>
+                    <li>
+                <label>Case Information: </label>
+                <textarea name="caseInfo" id="caseInfo">@caseInfo</textarea>
+                     </li>
+                        <li>
+                <label>Notes: </label>
+                <textarea name="caseNotes" id="caseNotes">@caseNotes</textarea>
+                            </li>
+                            </ul>
+    </div>
+        </form>
+        </section>
+        }

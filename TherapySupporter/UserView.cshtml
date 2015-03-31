@@ -1,0 +1,124 @@
+﻿@{
+    Layout = "~/_SiteLayout.cshtml";
+    Page.Title = "Profile";
+    
+    
+    var occupation = "";
+    var firstname = "";
+    var lastname = "";
+    var experience = "";
+    var about = "";
+    var email = "";
+    var location = "";
+    var company = "";
+    var photo = "";
+
+    Response.OutputCache(60);
+
+    var search = UrlData[0].AsInt();
+    
+    var db = Database.Open("StarterSite");
+
+            // Check if user already exists
+   var user = db.QuerySingle("SELECT * FROM UserProfile WHERE [UserId]=@0", search);
+            if (user != null) {
+               occupation = user.Occupation;
+                firstname = user.firstName;
+                lastname = user.lastName;
+                experience = user.Experience;
+                about = user.About;
+                email = user.Email;
+                photo = user.ProfileImageMIME;
+                company = user.Company;
+                location = "" + user.City + "," + user.stateProvider;                               
+            }
+            var marketQue = db.Query("SELECT * FROM [Products] WHERE [Products].[UserId]=@0 AND [Products].[Visibility]=2", search).ToList();
+
+         }
+@section featured {
+<section class="featured">
+    <div class="content-wrapper">
+        <hgroup class="title">
+            <h1>@Page.Title.</h1>
+            <h2>Sharapist: A Network For Therapy</h2>
+        </hgroup>
+        <fieldset>
+            <legend>Profile Information</legend>
+            <ul style="list-style: none">
+                @if (photo != null)
+                {
+                <li>
+                    <img style="border:solid; height:200px; width:200px" src="~/Dynamic/PeerImage/@search" alt="" />
+                </li>
+                }
+                else
+                {
+                    <li>
+                    <img style="border:solid; height:200px; width:200px" src="~/Images/DefaultProfile.png" alt="" />
+                </li>
+                }
+                <li>
+                <label>Location: @location</label>
+                <label>Company/Business: @company</label>
+                <label>Occupation: @occupation</label>
+                </li>
+                <li>
+                <label>Experience:</label>
+                <p id="experienceText">@experience</p>
+                </li>
+                <li>
+                <label>About Me:</label>
+                <p id="aboutText">@about</p>
+                </li>
+                <li>
+                <label>Contact Information:</label>
+                <span><a href="mailto:@email">@email</a></span>
+                </li>
+                @if(user.PayPal != null)
+                {
+                <li>
+                                    <h3>Market Place</h3>
+                     <h3>Available Products:</h3>
+                                    <div>
+                                <table style="max-height: 300px">
+                                    <tr>
+                                        <th>Product</th>
+                                        <th>Name</th>
+                                        <th>Ranking</th>
+                                    </tr>
+                                 @foreach (var item in marketQue)
+                                    {
+                                            <tr>
+                                                <td>
+                                            @if (item.ProductImageMIME != null)
+                                            {
+                                     <img  alt="Images from @item.Name" height="30" width="30" src="~/Dynamic/downloadProductImage/@item.id" class="thumbnail-no-border" />
+                                            }
+                                            else
+                                            {
+                                    <img src="~/Images/QuestionMark.png" alt="" height="30"  width="30" />   
+                                            } 
+                                                    </td>
+                                                <td>
+                                     <a href="~/MarketPlace/ItemDetail/@item.id" style="font:bold 13px arial,verdana">@item.Name</a>
+                                                    </td> 
+                                                <td>
+                                       @if (item.Rating != null)
+                                       {
+                                      <label>@item.Rating / 5</label>
+                                       }
+                                      else
+                                      {
+                                           
+                                      }
+                                                </td>
+                                            </tr>
+                                     } 
+                                    </table> 
+</li>
+                }
+                </ul>
+        </fieldset>         
+        </div>
+    </section>
+        }

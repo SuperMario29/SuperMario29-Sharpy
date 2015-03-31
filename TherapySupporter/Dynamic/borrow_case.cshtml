@@ -1,0 +1,33 @@
+﻿@{
+    if (WebSecurity.CurrentUserName == "")
+    {
+        Response.Redirect("~/Account/Login");
+    }
+    Response.OutputCache(60);
+    
+    if(UrlData[0].IsInt() && UrlData[1].IsInt())
+    {
+    var case_id = UrlData[0].AsInt();
+    var user_id = UrlData[1].AsInt() ;
+    var case_name = "";
+    var case_information = "";
+    var case_notes = "";
+    var user_favorite = false;
+    var favorite = 0;
+    var visibility = 0;
+    var timestamp = DateTime.Now;
+    var current_id = WebSecurity.CurrentUserId;
+
+    var db = Database.Open("StarterSite");
+    
+    var findcase = db.QuerySingle("SELECT * FROM [CaseStudies] WHERE [id]=@0", case_id);
+
+    case_name = findcase.name;
+    case_information = findcase.information;
+    case_notes = findcase.notes;
+    visibility = findcase.visibility;
+
+    db.Execute("INSERT INTO [CaseStudies] ([name], [information], [notes], [UserId], [favorite], [userFavorite], [visibility], [timestamp]) VALUES (@0,@1,@2,@3,@4,@5,@6,@7)", case_name, case_information, case_notes, current_id, favorite, user_favorite, visibility, timestamp);
+
+}
+}

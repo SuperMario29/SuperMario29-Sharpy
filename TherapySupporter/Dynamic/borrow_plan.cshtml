@@ -1,0 +1,40 @@
+﻿@{
+    if (WebSecurity.CurrentUserName == "")
+    {
+        Response.Redirect("~/Account/Login");
+    }
+    Response.OutputCache(60);
+    if(UrlData[0].IsInt() && UrlData[1].IsInt())
+    {
+    var id = UrlData[0].AsInt();
+    var user_id = UrlData[1].AsInt();
+    var current_user = WebSecurity.CurrentUserId;
+    var timestamp = DateTime.Now; 
+    
+    var db = Database.Open("StarterSite");
+
+    var findExercise = db.Query("SELECT * FROM [Exercise] WHERE [planId]=@0", id);
+
+    var findplan = db.QuerySingle("SELECT * FROM [Plans] WHERE [UserId]=@0 AND [id]=@1", user_id, id);
+
+    var plan_name = findplan.name;
+    var planImage = findplan.PlanImage;
+    var planImageName = findplan.PlanImageName;
+    var planImageMIME = findplan.PlanImageMIME;
+    var user_favorite = false;
+    var favorite = 0;
+    var visibility = findplan.visibility;
+    
+    db.Execute("INSERT INTO [Plans] ([UserId], [name], [PlanImage], [PlanImageName], [PlanImageMIME], [userFavorite], [favorite], [visibility], [timestamp]) VALUES (@0,@1,@2,@3,@4,@5,@6,@7,@8)", current_user, plan_name, planImage, planImageName, planImageMIME, user_favorite, favorite, visibility, timestamp);
+
+    var getLast = (int)db.GetLastInsertId();
+    //var getLast = db.QueryValue("SELECT SCOPE_IDENTITY()");
+    
+    foreach(var item in findExercise)
+    {
+        db.Execute("INSERT INTO [Exercise] ([UserId], [name], [detail], [video], [planId], [demoImage], [demoImageMIME], [demoImageName], [Position]) VALUES(@0,@1,@2,@3,@4,@5,@6,@7,@8)", current_user,item.name, item.detail, item.video, getLast, item.demoImage, item.demoImageMIME, item.demoImageName, item.Position);  
+    }
+    
+   
+}
+}

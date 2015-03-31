@@ -1,0 +1,139 @@
+﻿@{
+    Layout = "~/_SiteMessage.cshtml";
+    Page.Title = "Inbox";
+    if (WebSecurity.CurrentUserName == "")
+    {
+        Response.Redirect("~/Account/Login");
+    }
+
+    // Initialize general page variables
+    var userName = WebSecurity.CurrentUserName;
+    var userID = WebSecurity.CurrentUserId;
+    var roles = (SimpleRoleProvider)Roles.Provider;
+
+    if (roles.GetRolesForUser(userName).Contains("Client"))
+    {
+        Response.Redirect("~/Premium/ClientHome");
+    }
+
+    var db = Database.Open("StarterSite");
+
+    var user = db.QueryValue("SELECT [Disabled] FROM UserProfile WHERE LOWER(Email) = LOWER(@0)", userName);
+
+    if (user)
+    {
+        Response.Redirect("~/Account/Disabled Account");
+    } 
+
+    var inbox = db.Query("SELECT [Messages].*, [UserProfile].[firstName], [UserProfile].[lastName], [Mail].[isFlag] FROM [Messages] INNER JOIN [Mail] ON [Messages].[id]=[Mail].[Emailid] INNER JOIN [UserProfile] ON [Messages].[senderId]=[UserProfile].[UserId] WHERE [Mail].[UserId]=@0 AND [Mail].[isReceive]=@1", userID, true).ToList();
+
+    var grid = new WebGrid(inbox, ajaxUpdateContainerId: "grid", ajaxUpdateCallback: "setArrows");
+
+    if (IsPost)
+    {
+
+        if (Request.Form["DeleteSubmit"] == "Delete Message")
+        {
+            var message = Request.Form["isDelete"];
+
+            foreach (var item in message.Split(','))
+            {
+                db.Execute("DELETE FROM Mail WHERE [Emailid]=@0", item);
+            }
+
+            Response.Redirect("~/Messaging/Inbox");
+        }
+    }
+    
+    }
+
+
+<section> 
+     <div class="content-wrapper">  
+<hgroup class="title">
+            <h1>@Page.Title.</h1>
+            <h2>Sharapist: A Network For Therapy</h2>
+</hgroup>
+ <section id="SearchForm"> 
+     <form method="post" id="form1" name="form1" action="" enctype="multipart/form-data">
+             <fieldset>
+                 <nav>
+                     <ul id="menu">
+                         <li>
+                             <a href="~/Messaging/Sent.cshtml">Sent</a>
+                         </li>
+                         <li>
+                             <a href="~/Messaging/NewMessage.cshtml">Compose</a>
+                         </li>
+                         <li>
+                             <input type="submit" name="DeleteSubmit" value="Delete Message"></input>
+                         </li>
+                     </ul>
+                 </nav>
+                <ul>
+                    <li>
+            <h2>Messages: </h2>
+        @if (inbox.Count > 0)
+        {
+             <input type="hidden" id="messageChange" name="messageChange" value="" />
+             <div id="gridContainer">
+    <div id="grid">
+        @grid.GetHtml(
+            tableStyle: "table",
+            alternatingRowStyle: "alternate",
+            headerStyle: "header",
+            columns: grid.Columns(
+                grid.Column("",
+                header: "Delete?",
+                format: @<text>
+        <input type="checkbox" value="@item.id" name="isDelete" />
+        </text>),
+                grid.Column("timestamp", "Date/Time"),
+                grid.Column("messageTitle",
+                header: "Subject",
+                format: @<text>
+         <a href="~/Messaging/ViewMessage_Inbox/@item.id">@item.messageTitle</a>
+        </text>),
+                grid.Column("receiverId",
+                header: "From",
+                format: @<text>
+       <a href="~/Messaging/ViewMessage_Inbox/@item.id">@item.firstName @item.lastName</a>
+        </text>),
+                grid.Column("isEncrypt",
+                header: "Encrypted?",
+                format: @<text>
+        @if (@item.isEncrypt)
+        {
+        <img src="~/Images/Lock.png" height="30" width="30" onclick="Decrypt(@item.id)" />
+        }
+        </text>)
+            )
+        )
+        @Html.Hidden("dir", grid.SortDirection) @Html.Hidden("col", grid.SortColumn)
+    </div>
+</div>
+        }
+                        <script type="text/javascript">
+
+                            function setArrows() {
+                                var dir = $('#dir').val();
+                                var col = $('#col').val();
+                                var header = $('th a[href*=' + col + ']');
+                                if (dir == 'Ascending') {
+                                    header.text(header.text() + ' ▲');
+                                }
+                                if (dir == 'Descending') {
+                                    header.text(header.text() + ' ▼');
+                                }
+                            };
+
+                            function flag(id) {
+                                $('#myStyle').load('data.php?id=' + id);
+                            }
+
+</script>
+          </fieldset>
+        </form>
+         </section>
+      </div>
+    </section>

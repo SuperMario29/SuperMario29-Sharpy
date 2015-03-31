@@ -1,0 +1,353 @@
+﻿@section Scripts {
+     <script src="~/Scripts/chosen.jquery.js" type="text/javascript"></script>
+     <script type="text/javascript"> $(".chzn-select").chosen(); $(".chzn-select-deselect").chosen({ allow_single_deselect: true }); </script>
+}
+
+@{
+    Layout = "~/_SiteMain.cshtml";
+    Page.Title = "Create/Modify Plan";
+    if (WebSecurity.CurrentUserName == "")
+    {
+        Response.Redirect("~/Account/Login");
+    }
+
+    // Initialize general page variables
+    var visibility = 2;
+    var type = 0;
+    var planName = "";
+    var planID = "";
+    var userName = WebSecurity.CurrentUserName;
+    var userID = WebSecurity.CurrentUserId;
+    var fileName = "";
+    var fileMime = "";
+    var timestamp = "";
+    var roles = (SimpleRoleProvider)Roles.Provider;
+
+    if (roles.GetRolesForUser(userName).Contains("Client"))
+    {
+        Response.Redirect("~/Premium/ClientHome");
+    }
+    if (roles.GetRolesForUser(userName).Contains("Physical Therapist") || roles.GetRolesForUser(userName).Contains("Student: PT"))
+    {
+        type = 1;
+    }
+    if (roles.GetRolesForUser(userName).Contains("Occupational Therapist") || roles.GetRolesForUser(userName).Contains("Student: OT"))
+    {
+        type = 2;
+    }
+    if (roles.GetRolesForUser(userName).Contains("Personal Trainer"))
+    {
+        type = 3;
+    }
+
+    var db = Database.Open("StarterSite");
+
+    var user = db.QueryValue("SELECT [Disabled] FROM UserProfile WHERE LOWER(Email) = LOWER(@0)", userName);
+
+    if (user)
+    {
+        Response.Redirect("~/Account/Disabled Account");
+    }
+    
+    var planQue = db.Query("SELECT * FROM [Plans] WHERE [UserId]=@0", userID).ToList();
+    var pre_planQue = db.Query("SELECT * FROM [PlanPrem] WHERE [therapistId]=@0", userID).ToList();
+
+    // If this is a POST request, validate and process data
+    if (IsPost)
+    {
+
+        planName = Request.Form["planName"];
+        planID = Request.Form["hiddenID"];
+        visibility = Convert.ToInt32(Request.Form["planVis"]);
+        var chkPremium = Request.Form["isPremium"];
+        var category = Request.Form["tocat"];
+        
+        if (category == null)
+        {
+            category = "";
+        }
+
+        if (Request.Form["btnSubmit"] == "Submit Plan" && planID == "" && planName != "")
+        {
+   
+                if (chkPremium != null)
+                {
+                    timestamp = Request.Form["timestamp"];
+                    var uploadedF = Request.Files[0];
+                    fileName = Path.GetFileName(uploadedF.FileName);
+                    if (fileName != String.Empty)
+                    {
+                        fileMime = uploadedF.ContentType;
+                        var fileStream = uploadedF.InputStream;
+                        var fileLength = uploadedF.ContentLength;
+                        byte[] fileContent = new byte[fileLength];
+                        fileStream.Read(fileContent, 0, fileLength);
+                        db.Execute("INSERT INTO [PlanPrem] ([therapistId], [name], [PlanImage], [PlanImageName], [PlanImageMIME], [isComplete], [timestamp], [Type], [Category], [isFlag]) VALUES (@0, @1, @2, @3, @4, @5, @6, @7,@8,@9)", userID, planName, fileContent, fileMime, fileName, false, timestamp, type,category,false);
+                    }
+                    else
+                    {
+                        db.Execute("INSERT INTO [PlanPrem] ([therapistId], [name], [isComplete], [timestamp], [Type], [Category], [isFlag]) VALUES (@0, @1, @2, @3, @4,@5,@6)", userID, planName, false, timestamp, type, category, false);
+                    }
+
+                    Response.Redirect("~/Plan/Plan");
+                }
+            timestamp = Request.Form["timestamp"];
+            var uploadedFile = Request.Files[0];
+            fileName = Path.GetFileName(uploadedFile.FileName);
+            if (fileName != String.Empty)
+            {
+                fileMime = uploadedFile.ContentType;
+                var fileStream = uploadedFile.InputStream;
+                var fileLength = uploadedFile.ContentLength;
+                byte[] fileContent = new byte[fileLength];
+                fileStream.Read(fileContent, 0, fileLength);
+                db.Execute("INSERT INTO [Plans] ([UserId], [name], [PlanImage], [PlanImageName], [PlanImageMIME], [userFavorite], [favorite], [timestamp], [visibility], [Type], [Category], [isFlag]) VALUES (@0, @1, @2, @3, @4, @5, @6, @7, @8, @9,@10,@11)", userID, planName, fileContent, fileMime, fileName, false, 0, timestamp, visibility, type, category, false);
+            }
+            else
+            {
+                db.Execute("INSERT INTO [Plans] ([UserId], [name], [userFavorite], [favorite], [timestamp], [visibility], [Type], [Category], [isFlag]) VALUES (@0, @1, @2, @3, @4, @5, @6,@7,@8)", userID, planName, false, 0, timestamp, visibility, type, category, false);
+            }
+
+            Response.Redirect("~/Plan/Plan");
+        }
+
+        else if (Request.Form["btnSubmit"] == "Update Plan" && planID != "")
+        {            
+                if (chkPremium != null)
+                {
+                    var uploadedF = Request.Files[0];
+                    fileName = Path.GetFileName(uploadedF.FileName);
+                    if (fileName != String.Empty)
+                    {
+                        fileMime = uploadedF.ContentType;
+                        var fileStream = uploadedF.InputStream;
+                        var fileLength = uploadedF.ContentLength;
+                        byte[] fileContent = new byte[fileLength];
+                        fileStream.Read(fileContent, 0, fileLength);
+                        db.Execute("UPDATE [PlanPrem] SET [name]=@0, [PlanImage]=@1, [PlanImageName]=@2, [PlanImageMIME]=@3, [Type]=@5, [Category]=@6 WHERE [id]=@4", planName, fileContent, fileMime, fileName, planID, type, category);
+                    }
+                    else
+                    {
+                        db.Execute("UPDATE [PlanPrem] SET [name]=@0, [Type]=@2, [Category]=@3 WHERE [id]=@1", planName, planID, type, category);
+                    }
+
+                    Response.Redirect("~/Plan/Plan");
+                }
+
+            var uploadedFile = Request.Files[0];
+            fileName = Path.GetFileName(uploadedFile.FileName);
+            if (fileName != String.Empty)
+            {
+                fileMime = uploadedFile.ContentType;
+                var fileStream = uploadedFile.InputStream;
+                var fileLength = uploadedFile.ContentLength;
+                byte[] fileContent = new byte[fileLength];
+                fileStream.Read(fileContent, 0, fileLength);
+                db.Execute("UPDATE [Plans] SET [name]=@0, [PlanImage]=@1, [PlanImageName]=@2, [PlanImageMIME]=@3, [visibility]=@4, [Type]=@6, [Category]=@7 WHERE [id]=@5", planName, fileContent, fileMime, fileName, visibility, planID, type, category);
+            }
+            else
+            {
+                db.Execute("UPDATE [Plans] SET [name]=@0, [visibility]=@1, [Type]=@3, [Category]=@4 WHERE [id]=@2", planName, visibility, planID, type, category);
+            }
+
+            Response.Redirect("~/Plan/Plan");
+        }
+
+        else if (Request.Form["btnSubmit"] == "Add/Modify Exercise Plan" && planName != "")
+        {
+                 if (chkPremium != null)
+                 {
+                     Response.Redirect("~/Plan/PreEditExercise/" + planID); 
+                 }
+            
+            Response.Redirect("~/Plan/EditExercise/" + planID);
+        }
+
+        else if (Request.Form["DeletePlan"] == "")
+        {
+            if (planID != "")
+            {
+                db.Execute("DELETE FROM [Exercise] WHERE [planId]=@0", planID);
+                db.Execute("DELETE FROM [Plans] WHERE [id]=@0", planID);
+
+                Response.Redirect("~/Plan/Plan");
+            }
+        }
+
+        else if (Request.Form["PreDelete"] == "")
+        {
+            planID = Request.Form["hiddenID"];
+
+            if (planID != "")
+            {
+                db.Execute("DELETE FROM [ExercisePrem] WHERE [planId]=@0", planID);
+                db.Execute("DELETE FROM [PlanPrem] WHERE [id]=@0", planID);
+
+                Response.Redirect("~/Plan/Plan");
+            }
+        }
+    }
+  }
+ 
+<script type="text/javascript">
+    $('#SelectTable tr').hover(function() {
+        $(this).addClass('hover');
+    }, function() {
+        $(this).removeClass('hover');
+    });
+</script>
+
+ @section featured {
+<section class="featured"> 
+     <div class="content-wrapper">  
+<hgroup class="title">
+            <h1>@Page.Title.</h1>
+            <h2>Sharapist: A Network For Therapy</h2>
+</hgroup>
+<section id="PlanForm">
+        <form name="form1"  method="post" enctype="multipart/form-data">
+            <div>
+                <ul style="list-style: none; max-height: 300px; max-width: 300px">
+                    <li>
+                <h2>Available Plans: </h2>           
+              <input type="hidden" name="timestamp" value="@DateTime.Now" />
+                                                @if(planQue.Count > 0 || pre_planQue.Count > 0)
+                                                {
+                        <table id="SelectTable">
+                            <tr id="heading">
+                                <th colspan="2">
+                                    Plan
+                                </th>
+                                <th>
+                                    Delete?
+                                </th>
+                            </tr>
+                     @foreach (var item in planQue)
+                     {
+                            <tr>
+                                <td>
+                    @if (item.PlanImageMIME != null)
+                    {
+                    <a href="#" style="font:bold 13px arial,verdana" title="@item.name" itemprop="@item.Category" onclick="PopulatePlan(this,@item.id,@item.visibility)">
+                      <img  alt="Images from @item.name" height="30" width="30" src="~/Dynamic/downloadPlanImage/@item.id" class="thumbnail-no-border" />
+                        </a>
+                    }
+                    else
+                    {
+                    <a href="#" style="font:bold 13px arial,verdana" itemprop="@item.Category" title="@item.name" onclick="PopulatePlan(this,@item.id,@item.visibility)">
+                      <img src="~/Images/QuestionMark.png" alt="" height="30"  width="30" />  
+                        </a> 
+                    }
+                        </td>
+                                <td>
+                                    <a href="#" style="font:bold 13px arial,verdana" title="@item.name" itemprop="@item.Category" onclick="PopulatePlan(this,@item.id,@item.visibility)">@item.name</a>
+                                    </td>
+                                <td>
+                        <input type="submit" name="DeletePlan" title="Delete Plan" style="background-image: url(/Images/Minus.png); background-size: 30px; height: 30px; width: 30px" onclick="RemovePlan(@item.id)" value="" />
+                            </td>
+                                    </tr>
+                    }
+                             @foreach (var item in pre_planQue)
+                             {
+                            <tr>
+                                <td>
+                    @if (item.PlanImageMIME != null)
+                    {
+                    <a href="#" style="font:bold 13px arial,verdana" title="@item.name" itemprop="@item.Category" onclick="PopulatePrePlan(this,@item.id)">
+                      <img  alt="Images from @item.name" height="30" width="30" src="~/Dynamic/downloadPlanImage/@item.id" class="thumbnail-no-border" />
+                        </a>
+                    }
+                    else
+                    {
+                                            <a href="#" style="font:bold 13px arial,verdana" itemprop="@item.Category" title="@item.name" onclick="PopulatePrePlan(this,@item.id)">
+                      <img src="~/Images/QuestionMark.png" alt="" height="30"  width="30" />   
+                                                </a>
+                    }
+                        </td>
+                                <td>
+                                    <a href="#" style="font:bold 13px arial,verdana" itemprop="@item.Category" title="@item.name" onclick="PopulatePrePlan(this,@item.id)">@item.name</a>
+                                    </td>
+                                <td>
+                        <input type="submit" name="PreDelete" title="Delete Premium Plan" style="background-image: url(/Images/Minus.png); background-size: 30px; height: 30px; width: 30px" onclick="RemovePlan(@item.id)" value="" />
+                            </td>
+                                    </tr>
+                             }
+                                </table>
+                                                }
+                         else
+                {
+                                                                   <label>No available plans.</label>
+                         
+                }
+                    </li>
+                    </ul>
+                                                
+               
+                </div>
+            <div>
+                                    <h3>Plan Information</h3>
+                            <ul style="list-style: none">
+                    <li>
+                    <label>Plan Name: </label>
+                <input type="text" id="planName" name="planName" value="@planName" maxlength="300" />
+                <input type="hidden" id="hiddenID" name="hiddenID" value="@planID" />
+                          </li>
+                    <li>
+                        <label>Plan Image: </label>
+                            <input type="file" name="fileUpload"/>
+                    </li>
+
+                                <li>
+                                    <label id="planLabelPre">Is Plan Premium?</label>
+                                    <input type="checkbox" onchange="isChecked(this)" name="isPremium" id="isPremium" />
+                                </li>
+                                            <li>
+                <label id="planLabelVis">Plan Visablity</label>
+                 <select id="planVis" name="planVis" size="1" >
+                    <option value="2" selected="selected">Everyone</option>
+                    <option value="1">Only Peope in Peer Network</option>
+                    <option value="0">No One</option>
+                  </select>
+               <input type="hidden" id="hiddenVisible" name="hiddenVisible" />
+             </li>
+             <li>
+                 <label>Plan Category</label>
+                <select data-placeholder="Category" name="tocat" id="tocat" style="width:500px; list-style: none;" multiple class="chzn-select" tabindex="8">
+                     <optgroup label="Leg">
+                      <option id="Hamstring" value="Hamstring">Hamstring</option>
+                      <option id="Quad" value="Quad">Quad</option>
+                      <option id="Calf" value="Calf">Calf</option>
+                      <option id="Hip" value="Hip">Hip</option>
+                      <option id="Knee" value="Knee">Knee</option>
+                      <option id="Ankle" value="Ankle">Ankle</option>
+                    </optgroup>
+                    <optgroup label="Back">
+                      <option id="Multifidus" value="Multifidus">Multifidus</option>
+                      <option id="Transversus Abdominus" value="Transversus Abdominus">Transversus Abdominus</option>
+                      <option id="Latissimus dorsi" value="Latissimus dorsi">Latissimus dorsi</option>
+                      <option id="Trapezius" value="Trapezius">Trapezius</option>
+                    </optgroup>
+                    <optgroup label="Arm">
+                        <option id="Bicep" value="Bicep">Bicep</option>
+                        <option id="Tricep" value="Tricep">Tricep</option>
+                        <option id="Shoulder" value="Shoulder">Shoulder</option>
+                        <option id="Elbow" value="Elbow">Elbow</option>
+                     </optgroup>
+                    <optgroup label="Other">
+                        <option id="Neck" value="Neck">Neck</option>
+                        <option id="Abdomen" value="Abdomen">Abdomen</option>
+                    </optgroup>
+                </select>
+             </li>
+                    <li>
+                        <input type="submit" name="btnSubmit" value="Update Plan" />
+                        <input type="submit" name="btnSubmit" value="Submit Plan"/>
+                        <input type="submit" name="btnSubmit" value="Add/Modify Exercise Plan" />
+                    </li>
+                </ul>
+                            </div>
+            </form>
+    </section>
+         </div>
+     </section>
+                     }

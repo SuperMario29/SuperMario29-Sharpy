@@ -1,0 +1,44 @@
+﻿@{
+    // Set the layout page and page title
+    Layout = "~/_SiteLayout.cshtml";
+    Page.Title = "Disabled Account";
+
+    var userId = WebSecurity.CurrentUserId;
+    var userName = WebSecurity.CurrentUserName;
+
+
+    var db = Database.Open("StarterSite");
+
+    var user = db.QueryValue("SELECT [Disabled] FROM UserProfile WHERE LOWER(Email) = LOWER(@0)", userName);
+
+    if (!user)
+    {
+        Response.Redirect("~/Home");
+    } 
+    
+    if(IsPost)
+    {
+     if (Request.Form["btnSubmit"]=="Reactivate Account")
+     {
+         db.Execute("UPDATE [UerProfile] SET [Disabled]=@0 WHERE [UserId]=@1", false, userId);
+
+         Response.Redirect("~/Home");
+     }
+
+     Response.Redirect("~/Home");  
+        
+    }
+    
+}
+
+
+    <hgroup class="title">
+        <h1>@Page.Title.</h1>
+        <h2>Your Account has been disabled!</h2>
+    </hgroup>
+<form method="post">
+    <p>
+       Do you want to reenable your account?
+    </p>
+<input type="submit" value="Reactivate Account" name="btnSubmit" />
+    </form>

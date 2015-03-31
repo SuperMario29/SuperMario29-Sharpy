@@ -1,0 +1,285 @@
+﻿@{
+    Layout = "~/_SiteMain.cshtml";
+    Page.Title = "Profile";
+    if (WebSecurity.CurrentUserName == "")
+    {
+        Response.Redirect("~/Account/Login");
+    }
+    var occupation = "";
+    var firstname = "";
+    var lastname = "";
+    var experience = "";
+    var about = "";
+    var photo = "";
+    var location = "";
+    var company = "";
+    var isDirect = false;
+    var userName = WebSecurity.CurrentUserName;
+    var userID = WebSecurity.CurrentUserId;
+    var roles = (SimpleRoleProvider)Roles.Provider;
+
+    if (roles.GetRolesForUser(userName).Contains("Client"))
+    {
+        Response.Redirect("~/Premium/ClientHome");
+    }
+    
+      var db = Database.Open("StarterSite");
+
+            // Check if user already exists
+            var user = db.QuerySingle("SELECT * FROM UserProfile WHERE LOWER(Email) = LOWER(@0)", userName);
+            if (user != null) {
+               occupation = user.Occupation;
+                firstname = user.firstName;
+                lastname = user.lastName;
+                experience = user.Experience;
+                about = user.About;
+                photo = user.ProfileImageMIME;
+                company = user.Company;
+                location = "" + user.City + "," + user.stateProvider;
+                isDirect = user.isFlag;
+
+                if (user.Disabled)
+                {
+                    Response.Redirect("~/Account/Disabled Account");
+                }                              
+            }
+
+            var planQue = db.Query("SELECT * FROM [Plans] WHERE [UserId]=@0", userID).ToList();
+            var caseQue = db.Query("SELECT * FROM [CaseStudies] WHERE [UserId]=@0", userID).ToList();
+            var marketQue = db.Query("SELECT * FROM [Products] WHERE [Products].[UserId]=@0", userID).ToList();
+            var peerQue = db.Query("SELECT [UserProfile].* FROM [UserProfile] INNER JOIN [PeerNet] ON [UserProfile].[UserId]=[PeerNet].[UserId] OR [UserProfile].[UserId]=[PeerNet].[PeerId]  WHERE ([PeerNet].[UserId]=@0 AND [PeerNet].[isaccepted]=@1 AND [UserProfile].[Disabled]=@2) OR ([PeerNet].[PeerId]=@0 AND [PeerNet].[isaccepted]=@1 AND [UserProfile].[Disabled]=@2)", userID, true, false).ToList();
+            peerQue.Take(4);
+         
+         }
+ <script type="text/javascript">
+$(function() {
+    $("#accord").accordion();
+    $("#accordion").accordion("option", "icons", null);
+});
+</script>
+@section featured {
+<section class="featured">
+    <div class="content-wrapper">
+        <hgroup class="title">
+            <h1>@Page.Title.</h1>
+            <h2>Sharapist: A Network For Therapy</h2>
+        </hgroup>
+                <form method="post" name="form1">
+        <fieldset>
+            <legend>Profile Information</legend>
+            <ul style="list-style: none">
+                @if (photo != null)
+                {
+                <li>
+                    <a href="~/Profile/EditProfileImage">
+                    <img style="border:solid" src="~/Dynamic/downloadImage.cshtml" alt="Profile Image of @firstname @lastname" height="200"  width="200" />
+                    </a>
+                </li>
+                }
+                else
+                {
+                    <li>
+                    <a href="~/Profile/EditProfileImage">
+                    <img style="border:solid" src="~/Images/DefaultProfile.png" alt="Default Profile" height="200"  width="200" />
+                    </a>
+                </li>
+                }
+                <li>
+                     <a style="font:bold 15px" class="email" href="~/Profile/EditProfile" title="Edit Profile">@firstname @lastname</a>
+                </li>
+                <li>
+                <label>Email: @WebSecurity.CurrentUserName</label>
+                <label>Location: @location</label>
+                <label>Company/Business: @company</label>
+                </li>
+                @if(isDirect == true)
+                {
+                <li>
+                    <label>Occupation: @occupation-Direct Access Certified</label>
+                </li>
+                }
+                else
+                {
+                  <li>
+                    <label>Occupation: @occupation</label>
+                </li>
+                }
+                <li>
+                <label>Experience:</label>
+                <p id="experienceText">@experience</p>
+                </li>
+                <li>
+                <label>About Me:</label>
+                <p id="aboutText">@about</p>
+                </li>
+                <li>
+                  <label>Peer Network:</label>
+                    <div id="list-profile">
+                     <ul>
+                       @foreach (var peer in peerQue)
+                        {
+                           if (peer.UserID != userID)
+                           {
+                          <li>
+                            @if (peer.ProfileImageMIME != null)
+                            {
+                                <a href="~/Profile/PeerView/@peer.UserId">
+                              <img alt="Images from @peer.firstName @peer.lastName" title="@peer.firstName @peer.lastName" height="70" width="70" src="~/Dynamic/PeerImage/@peer.UserId" class="thumbnail-no-border" />
+                                    </a>
+                            }
+                            else
+                            {
+                                <a href="~/Profile/PeerView/@peer.UserId">
+                            <img style="border:solid" title="@peer.firstName @peer.lastName" src="~/Images/DefaultProfile.png" alt="" height="50"  width="50" />  
+                                    </a>
+                            }
+                                  </li>
+                           }
+                                     } 
+                                    </ul>
+
+                    </div>
+                   <a href="~/Profile/PeerNetwork">See All Peers</a>
+                        
+                                </li>
+                            </ul>
+                        </fieldset>    
+                                <div id="accord">
+                                    @if(caseQue.Count() > 0)
+                                    {
+                              <h3>Case Studies:</h3>
+                                    <div>
+                                <table style="max-height: 300px">
+                                    <tr>
+                                        <th>Case Study</th>
+                                        <th>Favorite?</th>
+                                        <th>Likes</th>
+                                    </tr>
+                                    @foreach (var caseS in caseQue)
+                                    {
+                                            <tr>
+                                                <td>
+                                     <a href="~/CaseStudy/ProfileCase/@caseS.id" style="font:bold 13px arial,verdana">@caseS.name</a>
+                                                    </td>
+                                                <td>
+                                        @if(caseS.userFavorite)
+                                        {
+                                     <img src="~/Images/Heart.png" style="background-size: 30px; height: 30px; width: 30px; opacity: 0.4; filter: alpha(opacity=40);" onclick="userFavoriteCase(@caseS.id,@userID,true,this)"  />
+                                        }
+                                         else
+                                         {
+                                     <img src="~/Images/Heart.png" onclick="userFavoriteCase(@caseS.id,@userID,false)" style="background-size: 30px; height: 30px; width: 30px;"  /> 
+                                                 }
+                                                    </td>
+                                                <td>
+                                               <label>@caseS.favorite</label>
+                                                </td>
+                                                </tr>
+                                     } 
+                                    </table>
+                                    </div>
+                                    }
+                                @if(planQue.Count() > 0)
+                                {
+                                <h3>Plan:</h3>
+                                    <div>
+                                <table style="max-height: 300px">
+                                    <tr>
+                                        <th colspan="2">Plan</th>
+                                        <th>Favorite?</th>
+                                        <th>Likes</th>
+                                    </tr>
+                                 @foreach (var item in planQue)
+                                    {
+                                            <tr>
+                                                <td>
+                                            @if (item.PlanImageMIME != null)
+                                            {
+                                     <img  alt="Images from @item.name" height="30" width="30" src="~/Dynamic/downloadPlanImage/@item.id" class="thumbnail-no-border" />
+                                            }
+                                            else
+                                            {
+                                    <img src="~/Images/QuestionMark.png" alt="" height="30"  width="30" />   
+                                            } 
+                                                    </td>
+                                                <td>
+                                     <a href="~/Plan/UseExercise/@item.id" style="font:bold 13px arial,verdana">@item.name</a>
+                                                    </td> 
+                                                <td>
+                                                    @if(item.userFavorite)
+                                                    {
+                                     <img src="~/Images/Heart.png" style="background-size: 30px; height: 30px; width: 30px; opacity: 0.4; filter: alpha(opacity=40);" onclick="userFavoritePlan(@item.id,@userID,true,this)" />
+                                                    }
+                                                    else
+                                                    {
+                                     <img src="~/Images/Heart.png" style="background-size: 30px; height: 30px; width: 30px;" onclick="userFavoritePlan(@item.id,@userID,false,this)" />
+                                                    }
+                                                    </td>
+                                                <td>
+                                      <label>@item.favorite</label>
+                                                </td>
+                                            </tr>
+                                     } 
+                                    </table> 
+                                    </div>
+                                }
+                                    </div> 
+                    <hr />
+                    <h3>Market Place</h3>
+                     <h3>Current Products:</h3>
+                                    <div>
+                                <a href="~/MarketPlace/AddProduct">Add Product</a>
+                                <table style="max-height: 300px">
+                                    <tr>
+                                        <th>Product</th>
+                                        <th>Name</th>
+                                        <th>Ranking</th>
+                                        <th>Recommend Item?</th>
+                                    </tr>
+                                 @foreach (var item in marketQue)
+                                    {
+                                            <tr>
+                                                <td>
+                                            @if (item.ProductImageMIME != null)
+                                            {
+                                     <img  alt="Images from @item.Name" height="30" width="30" src="~/Dynamic/downloadProductImage/@item.id" class="thumbnail-no-border" />
+                                            }
+                                            else
+                                            {
+                                    <img src="~/Images/QuestionMark.png" alt="" height="30"  width="30" />   
+                                            } 
+                                                    </td>
+                                                <td>
+                                     <a href="~/MarketPlace/EditProduct/@item.id" style="font:bold 13px arial,verdana">@item.Name</a>
+                                                    </td> 
+                                                <td>
+                                       @if (item.Rating != null)
+                                       {
+                                      <label>@item.Rating / 5</label>
+                                       }
+                                      else
+                                      {
+                                           
+                                      }
+                                                </td>
+                                                @if(item.Visibility == 1)
+                                                {
+                                                <td>
+                                                    <a href="~/MarketPlace/RecomPro/@item.id">Recommend?</a>
+                                                </td>
+                                                }
+                                                else
+                                                {
+                                                  <td>
+
+                                                  </td>  
+                                                }
+                                            </tr>
+                                     } 
+                                    </table> 
+                                    </div>
+                                }        
+          </form>
+        </div>
+    </section>
+        }

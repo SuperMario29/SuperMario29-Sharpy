@@ -1,0 +1,225 @@
+﻿@section Scripts {
+     <script src="~/Scripts/chosen.jquery.js" type="text/javascript"></script>
+     <script type="text/javascript"> $(".chzn-select").chosen(); $(".chzn-select-deselect").chosen({ allow_single_deselect: true }); </script>
+}
+
+@{
+    Layout = "~/_SiteMessage.cshtml";
+    Page.Title = "Client Management";
+    if (WebSecurity.CurrentUserName == "")
+    {
+        Response.Redirect("~/Account/Login");
+    }
+
+    var clientEmail = "";
+    var userName = WebSecurity.CurrentUserName;
+    var userID = WebSecurity.CurrentUserId;
+    var clientID = "";
+    List<string> oldlist = new List<string>();
+    
+
+    var roles = (SimpleRoleProvider)Roles.Provider;
+   
+    if (roles.GetRolesForUser(userName).Contains("Client"))
+    {
+        Response.Redirect("~/Premium/ClientHome");
+    }
+    
+    var db = Database.Open("StarterSite");
+
+    var user = db.QueryValue("SELECT [Disabled] FROM UserProfile WHERE LOWER(Email) = LOWER(@0)", userName);
+
+    if (user)
+    {
+        Response.Redirect("~/Account/Disabled Account");
+    }
+    
+    var clientQue = db.Query("SELECT * FROM [UserProfile] WHERE ([hasTherapist])=@0", userID).ToList();
+    var planQue = db.Query("SELECT * FROM [PlanPrem] WHERE ([therapistId])=@0 AND ([clientId]) is NULL", userID);
+    IEnumerable<dynamic> findplan = new List<dynamic>();
+    IEnumerable<dynamic> findlockplan = new List<dynamic>();
+    
+    if (IsPost)
+    {
+
+        clientEmail = Request.Form["hiddenEmail"];
+        clientID = Request.Form["hiddenID"];
+        
+        if (clientID != "")
+        {
+        findplan = db.Query("SELECT [PlanPrem].* FROM [PlanPrem] WHERE [PlanPrem].[therapistId]=@0 AND [PlanPrem].[clientId]=@1 AND [isComplete]=@2", userID, clientID, false);
+        }
+
+        foreach (var item in findplan)
+        {
+            oldlist.Add("" + item.id);
+        }
+
+        findplan = null;
+        
+        if (Request.Form["btnSubmit"] == "New Client")
+        {
+            Response.Redirect("~/Account/RegisterClient");
+        }
+        
+        else if (Request.Form["btnSubmit"] == "New Message")
+        {
+            Response.Redirect("~/Messaging/ClientMessage/"+clientID);
+        }
+        
+        else if (Request.Form["btnSubmit"] == "Manage Client")
+        {
+            Response.Redirect("~/Premium/ManageClient/" + clientID);
+        }
+
+        else if (Request.Form["btnSubmit"] == "Update Client Plans")
+        {
+            var list = Request.Form["toplan"];
+
+            List<string> currentlist = new List<string>();
+
+            if(list != null)
+            {
+            foreach(var item in list.Split(','))
+            {
+                currentlist.Add(item);
+            }
+            }
+            else
+            {
+                currentlist.Add(list); 
+            }
+            
+            if(list == null)
+            {
+                foreach (var item in oldlist)
+                {
+                        db.Execute("UPDATE [PlanPrem] SET [clientId]=@0 WHERE [id]=@1", null, item);
+
+                        var findE = db.Query("SELECT [id] FROM [ExercisePrem] WHERE [planId]=@0", item);
+
+                        if (findE != null)
+                        {
+                            foreach (var items in findE)
+                            {
+                                db.Execute("UPDATE [ExercisePrem] SET [clientId]=@0, [userResults]=@0 WHERE [id]=@1", null, items.id);
+                            }
+                        }
+                }
+            }
+            else if(currentlist != oldlist)
+            {
+                foreach(var item in currentlist)
+                {
+                    if(!oldlist.Contains(item))
+                    {
+                        db.Execute("UPDATE [PlanPrem] SET [clientId]=@0 WHERE [id]=@1", clientID, item);
+
+                        var findE = db.Query("SELECT [id] FROM [ExercisePrem] WHERE [planId]=@0", item);
+
+                        if (findE != null)
+                        {
+                            foreach (var items in findE)
+                            {
+                                db.Execute("UPDATE [ExercisePrem] SET [clientId]=@0 WHERE [id]=@1", clientID, items.id);
+                            }
+                        }
+                    }
+                }
+                
+                foreach(var item in oldlist)
+                {
+                    if (!currentlist.Contains(item))
+                    {
+                        db.Execute("UPDATE [PlanPrem] SET [clientId]=@0 WHERE [id]=@1", null, item);
+
+                        var findE = db.Query("SELECT [id] FROM [ExercisePrem] WHERE [planId]=@0", item);
+
+                        if (findE != null)
+                        {
+                            foreach (var items in findE)
+                            {
+                                db.Execute("UPDATE [ExercisePrem] SET [clientId]=@0, [userResults]=@0 WHERE [id]=@1", null, items.id);
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        findplan = db.Query("SELECT [PlanPrem].* FROM [PlanPrem] WHERE [PlanPrem].[therapistId]=@0 AND [PlanPrem].[clientId]=@1 AND [isComplete]=@2", userID, clientID, false);
+        findlockplan = db.Query("SELECT [PlanPrem].* FROM [PlanPrem] WHERE [PlanPrem].[therapistId]=@0 AND [PlanPrem].[clientId]=@1 AND [isComplete]=@2", userID, clientID,true);
+
+       }
+     }
+
+@section featured {
+<section class="featured">
+    <div class="content-wrapper">
+        <hgroup class="title">
+            <h1>@Page.Title.</h1>
+            <h2>Sharapist: A Network For Therapy</h2>
+        </hgroup>
+        <div/>
+    <form id="form1" name="form1" method="post">
+        <div>
+                <h3>Clients: </h3>
+            <input type="submit" name="btnSubmit" value="New Client" />
+                 <input type="hidden" name="timestamp" value="@DateTime.Now" />
+                          <table style="max-height: 300px; max-width: 300px">
+                              <tr>
+                                  <th>Client</th>
+                              </tr>
+                             @foreach (var client in clientQue)
+                                 {
+                              <tr>
+                                  <td>
+                       <a href="#" style="font:bold 13px arial,verdana" title="@client.Email" onclick="PopulateClient(@client.UserId,this)">@client.Email</a>
+                                  </td>
+                                  <td>
+                        <input type="submit" name="btnSubmit" onclick="PopulateManage(@client.UserId)" id="manageClient" value="Manage Client" />
+                            </td>
+                                      </tr>
+                             }
+                                  </table>
+                            <input type="hidden" id="hiddenID" name="hiddenID" value="@clientID" />
+                            <input type="hidden" id="hiddenEmail" name="hiddenEmail" value="@clientEmail" />
+</div>
+        <div>
+                    <h3>Client Information</h3>
+                    <ul style="list-style: none">
+                    <li>
+                <label>Client Email: </label>
+                <input type="text" value="@clientEmail" id="clientEmail" name="clientEmail" />
+                <input type="submit" name="btnSubmit" onclick="PopulateManage(@clientID)" value="New Message" />
+                        </li>
+                    <li>
+                <label>Assign Client Plan: </label>
+                <select data-placeholder="Find Plan" name="toplan" id="toplan" style="width:500px; list-style: none;" multiple class="chzn-select" tabindex="8">
+                     @foreach (var item in findplan)
+                    {
+                        <option selected value="@item.id">@item.name</option>
+                    }
+                    @foreach (var item in planQue)
+                    {
+                        <option value="@item.id">@item.name</option>
+                    }
+                </select>
+               <input type="submit" name="btnSubmit" value="Update Client Plans" />
+               <label>Completed Client Plan: </label>
+                <select data-placeholder="Find Plan" name="cplan" id="cplan" style="width:500px; list-style: none;" multiple class="chzn-select" tabindex="8">
+                    @foreach (var item in findlockplan)
+                    {
+                        <option selected aria-readonly="true" style="background-color: lightgreen" value="@item.id">C: @item.name</option>
+                    } 
+                </select>
+                     </li>
+                        <li>
+                <a href="~/Premium/PlanHistory/@clientID">Client History</a>
+                            </li>
+                            </ul>
+     </div>
+        </form>
+        </div>
+    </section>
+        }

@@ -1,0 +1,125 @@
+﻿@section Scripts {
+     <script src="~/Scripts/chosen.jquery.js" type="text/javascript"></script>
+     <script type="text/javascript"> $(".chzn-select").chosen(); $(".chzn-select-deselect").chosen({ allow_single_deselect: true }); </script>
+}
+
+@{
+    Layout = "~/_SiteMessage.cshtml";
+    Page.Title = "New Message";
+    if (WebSecurity.CurrentUserName == "")
+    {
+        Response.Redirect("~/Account/Login");
+    }
+
+    Response.OutputCache(60);
+
+    if (!UrlData[0].IsInt())
+    {
+        Response.Redirect("~/Messaging/Inbox");
+    }
+    
+    var message = UrlData[0].AsInt();
+    
+    var receiverName = "";
+    var subject = "";
+    var body = "";
+    var timestamp = "";
+    var userID = WebSecurity.CurrentUserId;
+    var userName = WebSecurity.CurrentUserName;
+    var roles = (SimpleRoleProvider)Roles.Provider;
+
+    if (roles.GetRolesForUser(userName).Contains("Client"))
+    {
+        Response.Redirect("~/Premium/ClientHome");
+    }
+
+    var db = Database.Open("StarterSite");
+
+    var user = db.QueryValue("SELECT [Disabled] FROM UserProfile WHERE LOWER(Email) = LOWER(@0)", userName);
+
+    if (user)
+    {
+        Response.Redirect("~/Account/Disabled Account");
+    } 
+    
+    var messageQue = db.QuerySingle("SELECT * FROM [Messages] WHERE [id]=@0 AND [receiverId]=@1 OR [senderId]=@1", message, userID);
+    var peerQue = db.Query("SELECT [UserProfile].* FROM [UserProfile] INNER JOIN [PeerNet] ON [UserProfile].[UserId]=[PeerNet].[UserId] OR [UserProfile].[UserId]=[PeerNet].[PeerId]  WHERE [PeerNet].[UserId]=@0 AND [PeerNet].[isfriend]=@1 AND [PeerNet].[isaccepted]=@2 AND [PeerNet].[blocked]=@3 OR [PeerNet].[PeerId]=@0 AND [PeerNet].[isfriend]=@1 AND [PeerNet].[isaccepted]=@2 AND [PeerNet].[blocked]=@3", userID, true, true, false).ToList();
+
+
+
+    List<dynamic> ReceiverList = new List<dynamic>();
+
+    foreach (var item in messageQue.receiver_id.Split(','))
+    {
+        var send = db.QuerySingle("SELECT * FROM [UserProfile] WHERE [UserId]=@0", item);
+        ReceiverList.Add(send);
+    }
+
+
+    if (IsPost)
+    {
+
+        body = Request.Form["body"];
+        receiverName = Request.Form["topeer"];
+        subject = Request.Form["subject"];
+        timestamp = Request.Form["TimeStamp"];
+        
+        if(receiverName != null)
+        {
+        db.Execute("INSERT INTO [Messages] ([senderId], [receiverId], [message], [messageTitle], [timestamp], [linkedMessage]) VALUES (@0, @1, @2, @3, @4, @5)", userID, receiverName, body, subject, timestamp, message);
+        var email_id = db.GetLastInsertId();
+
+        db.Execute("INSERT INTO [Mail] ([Emailid], [UserId], [isFlag], [isRead], [isDeleted], [isReceive]) VALUES (@0,@1,@2,@3,@4,@5)", email_id, userID, false, false, false, false);
+
+        foreach (var item in receiverName.Split(','))
+        {
+            db.Execute("INSERT INTO [Mail] ([Emailid], [UserId], [isFlag], [isRead], [isDeleted], [isReceive]) VALUES (@0,@1,@2,@3,@4,@5)", email_id, item, false, false, false, true);
+        }
+        Response.Redirect("~/Messaging/Inbox");
+        }
+
+    }
+    }
+
+@*@section featured {*@
+<section class="featured">
+    <div class="content-wrapper">
+        <hgroup class="title">
+            <h1>@Page.Title.</h1>
+            <h2>Sharapist: A Network For Therapy</h2>
+        </hgroup>
+        <div/>
+    <form id="form1" name="form1" method="post" action="">
+                <fieldset>
+                    <legend>New Message</legend>
+                    <ol>
+                    <li>
+                <label>To: </label>
+                <select data-placeholder="Find Peer" name="topeer" id="topeer" style="width:500px; list-style: none;" multiple class="chzn-select" tabindex="8">
+                    @foreach (var item in ReceiverList)
+                    {
+                        <option selected value="@item.UserId">@item.firstName @item.lastName</option>
+                    }
+                    @foreach (var item in peerQue)
+                    {
+                        <option value="@item.UserID">@item.firstName @item.lastName</option>
+                    }
+                </select>                
+                        </li>
+                    <li>
+                <label>Subject: </label>
+                <input type="text" name="subject" id="subject" value="RE: @messageQue.messageTitle" maxlength="300"></input>
+                     </li>
+                        <li>
+                <label>Body: </label>
+                <textarea name="body" id="body" onKeyDown="limitText(this.form.body,this.form.countdown,3000);" 
+                onKeyUp="limitText(this.form.body,this.form.countdown,3000);" maxlength="3000">@body</textarea>
+                            <br />
+                    <font size="1">(Maximum characters: 3000)<br>
+                You have <input readonly="" type="text" name="countdown" size="3" value="3000"> characters left.</font>
+                            </li>
+                            </ol>
+                    </fieldset>
+        <input type="hidden" name="TimeStamp" value="@DateTime.Now" />
+        <input type="submit" value="Send" name="sendMessage" id="sendMessage" />
+    </section>

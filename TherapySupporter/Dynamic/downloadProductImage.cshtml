@@ -1,0 +1,23 @@
+﻿@{    
+     Response.OutputCache(60);
+     if(UrlData[0].IsInt())
+     {
+    var galleryId = UrlData[0].AsInt();
+    
+    var db = Database.Open("StarterSite");
+    
+    var sql = "Select * FROM [Products] WHERE id = @0";
+    var file = db.QuerySingle(sql, galleryId);
+         
+    if (file.ProductImageMIME.StartsWith("image/"))
+    {
+        Response.AddHeader("content-disposition", "inline; filename=" + file.ProductImageName);
+    }
+    else
+    {
+        Response.AddHeader("content-disposition", "attachment; filename=" + file.ProductImageName);
+    }
+    Response.ContentType = file.ProductImageMIME;
+    Response.BinaryWrite((byte[])file.ProductImage);
+     }
+}

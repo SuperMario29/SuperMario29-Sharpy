@@ -1,0 +1,36 @@
+﻿@{
+    Layout = "~/_SiteLayout.cshtml";
+    Page.Title = "Occupational Therapy Information";
+
+    var db = Database.Open("StarterSite"); 
+    
+    var CS = db.Query("SELECT [CaseStudies].*, [UserProfile].[firstName], [UserProfile].[lastName] FROM [CaseStudies] INNER JOIN [UserProfile] ON [UserProfile].[UserId]=[CaseStudies].[UserId] WHERE [CaseStudies].[visibility]=2 AND [CaseStudies].[Type]=2");
+}
+
+<hgroup class="title">
+    <h1>@Page.Title.</h1>
+    <h2>Sharapist: A Network For Therapy</h2>
+</hgroup>
+<ul style="list-style: none; height: 600px">
+    <li>
+        @if(CS.Count() > 0)
+        {
+         foreach(var item in CS)
+        {
+       <section>  
+        <article style="display: block">  
+            <header>  
+                <h2>@item.name</h2>  
+                <p>Posted on @item.timestamp by @item.firstName @item.lastName</p>  
+            </header>  
+            <p>@item.information</p>  
+        </article>  
+    </section>  
+        }
+        }
+         else
+        {
+            <label>No Information Available</label>
+        }
+    </li>
+</ul>

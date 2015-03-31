@@ -1,0 +1,65 @@
+﻿@{
+    Response.OutputCache(60);
+    if(!UrlData[0].IsEmpty() || !UrlData[1].IsEmpty())
+    {
+    var category = UrlData[0];
+    var state = UrlData[1];
+        
+    var db = Database.Open("StarterSite");
+    var userID = WebSecurity.CurrentUserId;
+
+
+    if (category != "N-A" && state != "")
+    {
+        var products = db.Query("SELECT [Products].*, [UserProfile].[firstName], [UserProfile].[lastName] FROM [Products] INNER JOIN [UserProfile] ON [UserProfile].[UserId]=[Products].[UserId] WHERE [Products].[Visibility]=@0 AND [Products].[Group] LIKE @1 AND [UserProfile].[stateProvider]=@2 AND [UserProfile].[PayPal] IS NOT NULL", 2, "%" + category + "%", state).ToList();
+
+foreach (var item in products)
+{
+    if (item.ProductImageMIME != null)
+    {
+        Response.Write("<li><a href='ItemDetail/" + item.id + "'><img class='product-image order-image' height='40' width='40' src='~/Dynamic/downloadProductImage/" + item.id + "' alt='Image of " + item.Name + "'/>  Product Name: " + item.Name + "<br> Price: $" + item.Price + "<br> Seller: " + item.firstName + " " + item.lastName + "</a></li>");
+    }
+    else
+    {
+        Response.Write("<li><a href='ItemDetail/" + item.id + "'><img src='~/Images/QuestionMark.png' alt='' height='30' width='30' />   Product Name: " + item.Name + "<br> Price: $" + item.Price + "<br> Seller: " + item.firstName + " " + item.lastName + "</a></li>");
+    }
+}
+    }
+        
+    else if (category != "N-A" && state == "")
+    {
+        var products = db.Query("SELECT [Products].* , [UserProfile].[firstName], [UserProfile].[lastName] FROM [Products] INNER JOIN [UserProfile] ON [UserProfile].[UserId]=[Products].[UserId] WHERE [Products].[Visibility]=@0 AND [Products].[Group] LIKE @1 AND [UserProfile].[PayPal] IS NOT NULL", 2, "%" + category + "%").ToList();
+
+foreach (var item in products)
+{
+    if (item.ProductImageMIME != null)
+    {
+        Response.Write("<li><a href='ItemDetail/" + item.id + "'><img class='product-image order-image' height='40' width='40' src='~/Dynamic/downloadProductImage/" + item.id + "' alt='Image of " + item.Name + "'/>  Product Name: " + item.Name + "<br> Price: $" + item.Price + "<br> Seller: " + item.firstName + " " + item.lastName + "</a></li>");
+    }
+    else
+    {
+        Response.Write("<li><a href='ItemDetail/" + item.id + "'><img src='~/Images/QuestionMark.png' alt='' height='30' width='30' />   Product Name: " + item.Name + "<br> Price: $" + item.Price + "<br> Seller: " + item.firstName + " " + item.lastName + "</a></li>");
+    }
+}        
+    }
+        
+    else if (category == "N-A" && state != "")
+    {
+        var products = db.Query("SELECT [Products].* , [UserProfile].[firstName], [UserProfile].[lastName] FROM [Products] INNER JOIN [UserProfile] ON [UserProfile].[UserId]=[Products].[UserId] WHERE [Products].[Visibility]=@0 AND [UserProfile].[stateProvider]=@1 AND [UserProfile].[PayPal] IS NOT NULL", 2, state).ToList();
+
+        foreach (var item in products)
+        {
+            if (item.ProductImageMIME != null)
+            {
+                Response.Write("<li><a href='ItemDetail/" + item.id + "'><img class='product-image order-image' height='40' width='40' src='~/Dynamic/downloadProductImage/" + item.id + "' alt='Image of " + item.Name + "'/>  Product Name: " + item.Name + "<br> Price: $" + item.Price + "<br> Seller: " + item.firstName + " " + item.lastName + "</a></li>");
+            }
+            else
+            {
+                Response.Write("<li><a href='ItemDetail/" + item.id + "'><img src='~/Images/QuestionMark.png' alt='' height='30' width='30' />   Product Name: " + item.Name + "<br> Price: $" + item.Price + "<br> Seller: " + item.firstName + " " + item.lastName + "</a></li>");
+            }
+        }
+        
+    }
+
+}
+}

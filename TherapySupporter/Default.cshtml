@@ -1,0 +1,42 @@
+﻿@{
+    Layout = "~/_SiteLayout.cshtml";
+    Page.Title = "Home Page";
+
+    if (WebSecurity.CurrentUserName != "")
+    {
+        Response.Redirect("~/Home");
+    }
+
+    var db = Database.Open("StarterSite");
+
+    var data = db.Query("SELECT [Email] FROM [UserProfile]");
+    var counter = data.Count();    
+}
+
+@section featured {
+<section class="featured">
+    <div class="content-wrapper">
+        <hgroup class="title">
+            <h1>@Page.Title.</h1>
+            <h2>Sharapist.Com: A Network For Health</h2>
+        </hgroup>
+        <div/>
+        <table>
+            <tr>
+                <td>
+       <h2>Network, Share, and Communicate with other Peers</h2>
+                    </td>
+                </tr>
+        <tr>
+            <td>
+                <p>
+                    Welcome to the Sharapist.com! A social network tailored for occupational/physical therapists and personal trainers to share information and knowledge with a community of peers to improve the
+                    health of their clients around the world.
+                </p>
+            </td>
+        </tr>
+        </table>
+        <label>Number of Users: @counter</label>
+        </div>
+    </section>
+        }

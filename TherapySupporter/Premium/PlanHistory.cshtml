@@ -1,0 +1,108 @@
+﻿@{
+    Layout = "~/_SiteMain.cshtml";
+    Page.Title = "Client Plan History";
+    if (WebSecurity.CurrentUserName == "")
+    {
+        Response.Redirect("~/Account/Login");
+    }
+
+    Response.OutputCache(60);
+
+    if (!UrlData[0].IsInt())
+    {
+        Response.Redirect("~/Premium/Management");
+    }
+
+    var clientID = UrlData[0].AsInt();
+    
+    // Initialize general page variables
+    var userName = WebSecurity.CurrentUserName;
+    var userID = WebSecurity.CurrentUserId;
+
+    var roles = (SimpleRoleProvider)Roles.Provider;
+
+    if (roles.GetRolesForUser(userName).Contains("Client"))
+    {
+        Response.Redirect("~/Premium/ClientHome");
+    }
+
+    
+    var db = Database.Open("StarterSite");
+
+    var user = db.QueryValue("SELECT [Disabled] FROM UserProfile WHERE LOWER(Email) = LOWER(@0)", userName);
+
+    if (user)
+    {
+        Response.Redirect("~/Account/Disabled Account");
+    }
+
+    var planQue = db.Query("SELECT * FROM [PlanPrem] WHERE [therapistId]=@0 AND [clientId]=@1", userID, clientID).ToList();
+            
+  }
+
+ 
+ @section featured {
+<section class="featured"> 
+     <div class="content-wrapper">  
+<hgroup class="title">
+            <h1>@Page.Title.</h1>
+            <h2>Sharapist: A Network For Therapy</h2>
+</hgroup>
+<section id="PlanForm">
+        <form method="post" enctype="multipart/form-data">
+           <div>
+                <h2>Plans: </h2>
+               @if(planQue.Count > 0)
+               {
+                <table style="max-height: 500px; max-width: 500px">
+                    <tr>
+                        <th>Is Complete?</th>
+                        <th>Plan</th>
+                    </tr>
+              @foreach (var item in planQue)
+                {
+                            <tr>
+                                @if(item.isComplete)
+                                {
+                                <td>
+                                    <input type="checkbox" checked="checked" name="isComplete" disabled="disabled" /> on @item.timestamp
+                                 </td>
+                                }
+                                else
+                                {
+                                    <td>
+                                        <input type="checkbox" name="isComplete" disabled="disabled" />
+                                    </td>
+                                }
+                                <td>
+                        @if (item.PlanImageMIME != null)
+                         {
+                                                        <a href="~/Plan/PreUseExercise/@item.id">
+                      <img src="~/Dynamic/downloadPlanImage/@item.id" style="height: 30px; width: 30px;" title="@item.name" />
+                        </a> 
+                        }
+                       else
+                         {
+                                                        <a href="~/Plan/PreUseExercise/@item.id">
+                      <img src="~/Images/QuestionMark.png" title="@item.name" style="height: 30px; width: 30px; background-size: 30px"  />  
+                                                            </a>
+                         }    
+                                    </td>
+                                <td>                     
+                            <a href="~/Plan/PreUseExercise/@item.id" title="@item.name">@item.name</a>
+                                </td>
+                                    </tr>
+                        } 
+            </table>
+               }
+               else
+               {
+                                                                                      <label>No available plans.</label>
+               }
+               
+                    </div>
+            </form>
+    </section>
+         </div>
+     </section>
+        }

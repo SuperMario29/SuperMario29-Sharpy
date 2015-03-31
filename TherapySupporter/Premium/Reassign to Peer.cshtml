@@ -1,0 +1,102 @@
+﻿@section Scripts {
+     <script src="~/Scripts/chosen.jquery.js" type="text/javascript"></script>
+     <script type="text/javascript"> $(".chzn-select").chosen(); $(".chzn-select-deselect").chosen({ allow_single_deselect: true }); </script>
+}
+
+@{
+    Layout = "~/_SiteMessage.cshtml";
+    Page.Title = "Reassign Client To Peer";
+    if (WebSecurity.CurrentUserName == "")
+    {
+        Response.Redirect("~/Account/Login");
+    }
+
+    var email = WebSecurity.CurrentUserName;
+    var userID = WebSecurity.CurrentUserId;
+    var clientID = "";
+    
+
+    var roles = (SimpleRoleProvider)Roles.Provider;
+
+    if (roles.GetRolesForUser(email).Contains("Client"))
+    {
+        Response.Redirect("~/Premium/ClientHome");
+    }
+    
+    Response.OutputCache(60);
+
+    if (!UrlData[0].IsInt())
+    {
+        Response.Redirect("~/Premium/Management");
+    }
+    
+    clientID = UrlData[0];
+    
+    var db = Database.Open("StarterSite");
+
+    var user = db.QueryValue("SELECT [Disabled] FROM UserProfile WHERE LOWER(Email) = LOWER(@0)", email);
+
+    if (user)
+    {
+        Response.Redirect("~/Account/Disabled Account");
+    }
+
+    var clientQue = db.QuerySingle("SELECT * FROM [UserProfile] WHERE [hasTherapist]=@0 AND [UserId]=@1", userID, clientID);
+
+    var peerQue = db.Query("SELECT [UserProfile].* FROM [UserProfile] INNER JOIN [PeerNet] ON [UserProfile].[UserId]=[PeerNet].[UserId] OR [UserProfile].[UserId]=[PeerNet].[PeerId]  WHERE ([PeerNet].[UserId]=@0 AND [PeerNet].[isfriend]=@1 AND [PeerNet].[isaccepted]=@2 AND [PeerNet].[blocked]=@3) OR ([PeerNet].[PeerId]=@0 AND [PeerNet].[isfriend]=@1 AND [PeerNet].[isaccepted]=@2 AND [PeerNet].[blocked]=@3)", userID, true, true, false).ToList();
+    
+    if (IsPost)
+    {
+
+        var newTherapist = Request.Form["toplan"];
+                
+        if (clientID != "")
+        {
+            db.Execute("UPDATE [UserProfile] SET [hasTherapist]=@1 WHERE [UserId]=@0", clientID, newTherapist);
+
+            Response.Redirect("~/Premium/Management");
+
+        }
+
+        }
+                
+    }
+
+@section featured {
+<section class="featured">
+    <div class="content-wrapper">
+        <hgroup class="title">
+            <h1>@Page.Title.</h1>
+            <h2>Sharapist: A Network For Therapy</h2>
+        </hgroup>
+        <div/>
+    <form id="form1" name="form1" method="post">
+        <table style="max-height: 300px; max-width: 300px">
+            <tr>
+                <td>
+                <label>Client: </label>
+                <label>@clientQue.Email</label>
+                            <input type="hidden" id="hiddenID" name="hiddenID" value="" />
+                            <input type="hidden" id="hiddenTherapist" name="hiddenTherapist" value="" />
+                <fieldset>
+                    <legend>Client Information</legend>
+                    <ul style="list-style: none">
+                    <li>
+                <label>Reassign To Peer: </label>
+                <select data-placeholder="Find Plan" name="toplan" id="toplan" style="width:500px; list-style: none;" class="chzn-select" tabindex="8">
+                     @foreach (var item in peerQue)
+                    {
+                        <option selected value="@item.UserId">@item.firstName @item.lastName</option>
+                    }
+                </select>
+                     </li>
+                            </ul>
+                            <input type="submit" value="Submit" />
+                    </fieldset>
+                    </td>
+                </tr>
+            </table>
+        </form>
+        </div>
+    </section>
+        }

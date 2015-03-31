@@ -1,0 +1,13 @@
+﻿    @{
+        if (WebSecurity.CurrentUserName == "")
+        {
+            Response.Redirect("~/Account/Login");
+        }
+           var userID = WebSecurity.CurrentUserId;
+
+    var db = Database.Open("StarterSite");
+
+    db.Execute("UPDATE [UserProfile] SET [Disabled]=@0 WHERE [UserId]=@1", true, userID);
+
+    Response.Redirect("~/Home");
+}

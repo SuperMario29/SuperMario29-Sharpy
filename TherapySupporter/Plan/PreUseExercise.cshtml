@@ -1,0 +1,182 @@
+﻿@section Scripts {
+     <script src="~/Scripts/chosen.jquery.js" type="text/javascript"></script>
+     <script type="text/javascript"> $(".chzn-select").chosen(); $(".chzn-select-deselect").chosen({ allow_single_deselect: true }); </script>
+}
+
+@{
+    Layout = "~/_SiteMain.cshtml";
+    Page.Title = "Use Exercise Plan";
+    if (WebSecurity.CurrentUserName == "")
+    {
+        Response.Redirect("~/Account/Login");
+    }
+
+    // Initialize general page variables
+    var exerciseID = "";
+    var exerciseName = "";
+    var detailExercise = "";
+    var userResults = "";
+    var picture = "";
+    var video = "";
+    var PositionID = 0;
+    var userName = WebSecurity.CurrentUserName;
+    var userID = WebSecurity.CurrentUserId;
+    List<dynamic> category = new List<dynamic>();
+
+    var roles = (SimpleRoleProvider)Roles.Provider;
+
+    if (roles.GetRolesForUser(userName).Contains("Client"))
+    {
+        Response.Redirect("~/Premium/ClientHome");
+    }
+    
+    Response.OutputCache(60);
+
+
+    if (!UrlData[0].IsInt())
+    {
+        Response.Redirect("~/Plan/UsePlan");
+    }
+
+    var plan = UrlData[0].AsInt();
+    
+    var db = Database.Open("StarterSite");
+
+    var user = db.QueryValue("SELECT [Disabled] FROM UserProfile WHERE LOWER(Email) = LOWER(@0)", userName);
+
+    if (user)
+    {
+        Response.Redirect("~/Account/Disabled Account");
+    }
+    var planQ = db.QuerySingle("SELECT [name], [Category] FROM [PlanPrem] WHERE [id]=@0 AND [therapistId]=@1", plan, userID);
+
+    if(planQ.Category != null)
+    {
+    foreach (var item in planQ.Category.Split(','))
+    {
+        category.Add(item);
+    }
+    }
+    
+    var data = db.Query("SELECT * FROM [ExercisePrem] WHERE [therapistId]=@0 AND [planId]=@1 ORDER BY [Position]", userID, plan);
+
+    PositionID = data.Count();
+    
+    if (IsPost)
+    {
+
+        exerciseID = Request.Form["hiddenID"];
+        
+        var db1 = Database.Open("StarterSite");
+
+        var exQuery = db1.QuerySingle("SELECT * FROM [ExercisePrem] WHERE [id]=@0", exerciseID);
+
+        exerciseName = exQuery.name;
+        detailExercise = exQuery.detail;
+        video = exQuery.video;
+        picture = exQuery.ExerciseImageMIME;
+        userResults = exQuery.userResults;
+    }
+}
+
+@section featured {
+<section class="featured"> 
+     <div class="content-wrapper">  
+<hgroup class="title">
+            <h1>@Page.Title.</h1>
+            <h2>Sharapist: A Network For Therapy</h2>
+</hgroup>
+ <section id="ExerciseForm"> 
+            <form method="post" id="form1" name="form1" enctype="multipart/form-data">
+             <div>
+                <ul style="list-style: none;">
+                     <li>
+                        <label>@planQ.name</label>
+                        <label>Plan Category</label>
+                            <select data-placeholder="Category" name="tocat" id="tocat" style="width:500px; list-style: none;" multiple class="chzn-select" tabindex="8">
+                    @if(category != null)
+                    {
+                    foreach(var item in category)
+                    {
+                      <option id="@item" selected="selected" value="@item">@item</option>  
+                    }
+                    }
+                </select>
+                    </li>
+                    <li>
+            <h2>Available Exercise: </h2>
+                        <table style="max-height: 300px; max-width: 300px">
+                            <tr>
+                                <th>
+                                    Is Complete?
+                                </th>
+                                <th>
+                                    Exercise
+                                </th>
+                            </tr>
+              @foreach (var exercise in data)
+                {
+                  <tr>
+                      @if(exercise.isComplete == true)
+                      {
+                      <td>
+                          <input type="checkbox" name="isComplete" checked="checked" /> on @exercise.timestamp
+                      </td>
+                      }
+                      else
+                      {
+                       <td>
+                          <input type="checkbox" name="isComplete" />
+                      </td>   
+                      }
+                      <td>
+                          <a href="#" title="@exercise.name" onclick="PopulateExercise(this,@exercise.id)">@exercise.name</a>
+                      </td>
+                  </tr>
+                }
+           </table>
+                    </li>
+                    </ul>
+                 </div>
+                <div>
+                            <ul style="list-style: none">
+                        <li class="ExerciesName">
+                <label>Exercise Name: </label>
+                <input type="text" id="exerciseName" name="exerciseName" value="@exerciseName" />
+                <input type="hidden" id="hiddenID" name="hiddenID" value="@exerciseID" />
+                            </li>
+                        <li class="Details">
+                 <label>Details: </label>
+                <textarea name="detailExercise"  id="detailExercise" style="height:150px">@detailExercise</textarea>
+                            </li>
+                        <li>
+                <label>Demonstration: </label>
+                 @if (IsPost && picture != null) {
+                      <img width="400" height="300" src="~/Plan/downloadExerciseImg.cshtml/@exerciseID" alt=""  />
+                    }
+                            else
+                            {
+                     
+                 }
+                            </li>
+                        <li style="border-bottom: 5px solid white">
+                <label>Video: </label>
+                @if (IsPost && video != "")
+                {
+                             
+<iframe class="youtube-player" type="text/html" width="500" height="365" src="http://www.youtube.com/embed/@video" frameborder="1">
+                </iframe>                 
+                }
+                
+                            </li>
+                                <li>
+                 <label>User Results:</label>
+                <textarea name="userResults">@userResults</textarea>
+                                </li>
+                    </ul> 
+                    </div>
+                </form>
+        </section>
+      </div>
+    </section>
+    }

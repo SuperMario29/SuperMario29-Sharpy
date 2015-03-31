@@ -1,0 +1,354 @@
+﻿@using System.Xml;
+@using System.Xml.XPath;
+
+@section Scripts {
+@*     <script src="~/Scripts/chosen.jquery.js" type="text/javascript"></script>*@
+@*     <script type="text/javascript"> $(".chzn-select").chosen({ "disable_search": true }); $(".chzn-select-deselect").chosen({ allow_single_deselect: true, "disable_search": true  });</script>*@
+}
+
+@{
+    Layout = "~/_SiteMain.cshtml";
+    Page.Title = "Share Center";
+
+    if (WebSecurity.CurrentUserName == "")
+    {
+        Response.Redirect("~/Account/Login");
+    }
+    var url = "";
+    var userName = WebSecurity.CurrentUserName;
+    var userID = WebSecurity.CurrentUserId;
+    var type = 0;
+    var roles = (SimpleRoleProvider)Roles.Provider;
+    dynamic bestPlan = null;
+    dynamic bestCase = null;
+
+    if (roles.GetRolesForUser(userName).Contains("Client"))
+    {
+        Response.Redirect("~/Premium/ClientHome");
+    }
+
+    if (roles.GetRolesForUser(userName).Contains("Physical Therapist") || roles.GetRolesForUser(userName).Contains("Student: PT"))
+    {
+        type = 1;
+        url = "http://www.medicalnewstoday.com/rss/rehabilitation.xml";
+    }
+    if (roles.GetRolesForUser(userName).Contains("Occupational Therapist") || roles.GetRolesForUser(userName).Contains("Student: OT"))
+    {
+        type = 2;
+        url = "http://ajot.aotapress.net/rss/current.xml";
+    }
+    if (roles.GetRolesForUser(userName).Contains("Personal Trainer"))
+    {
+        type = 3;
+        url = "http://feeds.feedburner.com/CresseyTrainingSystems?format=xml";
+    }
+
+    var db = Database.Open("StarterSite");
+
+    var user = db.QueryValue("SELECT [Disabled] FROM UserProfile WHERE LOWER(Email) = LOWER(@0)", userName);
+
+    if (user)
+    {
+        Response.Redirect("~/Account/Disabled Account");
+    }
+
+    var findMaxP = db.QueryValue("SELECT MAX([favorite]) FROM [Plans]");
+    if (findMaxP != 0)
+    {
+        int findMax_P = findMaxP;
+        bestPlan = db.QuerySingle("SELECT * FROM [Plans] WHERE [favorite]=@0 AND [visibility]>0", findMax_P);
+    }
+    var findMaxC = db.QueryValue("SELECT MAX([favorite]) FROM [CaseStudies]");
+    if (findMaxC != 0)
+    {
+        int findMax_C = findMaxC;
+        bestCase = db.QuerySingle("SELECT * FROM [CaseStudies] WHERE [favorite]=@0 AND [visibility]>0", findMax_C);
+    } 
+
+    // If this is a POST request, validate and process data
+
+    //Fetch RSS XML
+    XmlTextReader udBrudRSS = new XmlTextReader(url);
+
+    //Create new XML document
+    XmlDocument doc = new XmlDocument();
+
+    //Load in our remote XML into our XML document
+    doc.Load(udBrudRSS);
+
+    //Select our nodes we want with some xPath
+    XmlNodeList rssItems = doc.SelectNodes("//item");
+
+}
+ <script type="text/javascript">
+$(function() {
+    $("#accord").accordion();
+    $("#accordion").accordion("option", "icons", null);
+});
+</script>
+<hgroup class="title">
+    <h1>@Page.Title.</h1>
+    <h2>Sharapist: A Network For Therapy</h2>
+</hgroup>
+
+<div id="accord">
+            <h3>Client Plan</h3>
+        <div>
+            <ul style="list-style: none">
+                <li>
+                    <label>Most Popular Client Plan</label></li>
+                @if (bestPlan != null)
+                {
+                    <li style="display:inline; margin-left: 4px">
+                    @if (bestPlan.PlanImageMIME != null)
+                                            {
+                                     <img  alt="Images from @bestPlan.name" height="30" width="30" src="~/Dynamic/downloadPlanImage/@bestPlan.id" class="thumbnail-no-border" />
+                                            }
+                                            else
+                                            {
+                                    <img src="~/Images/QuestionMark.png" alt="Default Image" height="30"  width="30" />   
+                                            }  
+                    <a href="~/Plan/PeerPlan/@bestPlan.id" title="@bestPlan.id" style="font:bold 13px arial,verdana">@bestPlan.name</a>
+                </li>
+                }
+                else
+                {
+                    <li>
+                        <label>No Plans Availabile</label>
+                    </li>
+                }
+                <li>
+                    <label>Find by:</label>
+                    <select onchange="findPlan(this)" name="findplan" id="findplan">
+                        <option value=" " selected="selected"></option>
+                        <option value="State">State</option>
+                        <option value="Peer">Peer</option>
+                        <option value="Category">Category</option>
+                    </select>
+                    <select onchange="PlanfindState(this)" name="planfindstate" id="planfindstate" hidden="hidden">
+                        <option value=" " selected="selected"></option>
+                    <option value="AL">AL-Alabama</option>
+                    <option value="AK">AK-Alaska</option>
+                    <option value="AZ">AZ-Arizona</option>
+                    <option value="AR">AR-Arkansas</option>
+                    <option value="CA">CA-California</option>
+                    <option value="CO">CO-Colorado</option>
+                    <option value="CT">CT-Connecticut</option>
+                    <option value="DE">DE-Delaware</option>
+                    <option value="DC">DC-District of Columbia</option>
+                    <option value="FL">FL-Florida</option>
+                    <option value="GA">GA-Georgia</option>
+                    <option value="HI">HI-Hawaii</option>
+                    <option value="ID">ID-Idaho</option>
+                    <option value="IL">IL-Illinois</option>
+                    <option value="IN">IN-Indiana</option>
+                    <option value="IA">IA-Iowa</option>
+                    <option value="KS">KS-Kansas</option>
+                    <option value="KY">KY-Kentucky</option>
+                    <option value="LA">LA-Louisiana</option>
+                    <option value="ME">ME-Maine</option>
+                    <option value="MD">MD-Maryland</option>
+                    <option value="MA">MA-Massachusetts</option>
+                    <option value="MI">MI-Michigan</option>
+                    <option value="MN">MN-Minnesota</option>
+                    <option value="MS">MS-Mississippi</option>
+                    <option value="MO">MO-Missouri</option>
+                    <option value="MT">MT-Montana</option>
+                    <option value="NE">NE-Nebraska</option>
+                    <option value="NV">NV-Nevada</option>
+                    <option value="NH">NH-New Hampshire</option>
+                    <option value="NJ">NJ-New Jersey</option>
+                    <option value="NM">NM-New Mexico</option>
+                    <option value="NY">NY-New York</option>
+                    <option value="NC">NC-North Carolina</option>
+                    <option value="ND">ND-North Dakota</option>
+                    <option value="OH">OH-Ohio</option>
+                    <option value="OK">OK-Oklahoma</option>
+                    <option value="OR">OR-Oregon</option>
+                    <option value="PA">PA-Pennsylvania</option>
+                    <option value="RI">RI-Rhode Island</option>
+                    <option value="SC">SC-South Carolina</option>
+                    <option value="SD">SD-South Dakota</option>
+                    <option value="TN">TN-Tennessee</option>
+                    <option value="TX">TX-Texas</option>
+                    <option value="UT">UT-Utah</option>
+                    <option value="VT">VT-Vermont</option>
+                    <option value="VA">VA-Virginia</option>
+                    <option value="WA">WA-Washington</option>
+                    <option value="WV">WV-West Virginia</option>
+                    <option value="WI">WI-Wisconsin</option>
+                    <option value="WY">WY-Wyoming</option>
+                    </select>
+                    <select hidden="hidden" data-placeholder="Category" name="tocatPlan" id="tocatPlan" style="width:500px; list-style: none;" tabindex="8">
+                     <optgroup label="Leg">
+                      <option id="Hamstring" value="Hamstring">Hamstring</option>
+                      <option id="Quad" value="Quad">Quad</option>
+                      <option id="Calf" value="Calf">Calf</option>
+                      <option id="Hip" value="Hip">Hip</option>
+                      <option id="Knee" value="Knee">Knee</option>
+                      <option id="Ankle" value="Ankle">Ankle</option>
+                    </optgroup>
+                    <optgroup label="Back">
+                      <option id="Multifidus" value="Multifidus">Multifidus</option>
+                      <option id="Transversus Abdominus" value="Transversus Abdominus">Transversus Abdominus</option>
+                      <option id="Latissimus dorsi" value="Latissimus dorsi">Latissimus dorsi</option>
+                      <option id="Trapezius" value="Trapezius">Trapezius</option>
+                    </optgroup>
+                    <optgroup label="Arm">
+                        <option id="Bicep" value="Bicep">Bicep</option>
+                        <option id="Tricep" value="Tricep">Tricep</option>
+                        <option id="Shoulder" value="Shoulder">Shoulder</option>
+                        <option id="Elbow" value="Elbow">Elbow</option>
+                     </optgroup>
+                    <optgroup label="Other">
+                        <option id="Neck" value="Neck">Neck</option>
+                        <option id="Abdomen" value="Abdomen">Abdomen</option>
+                    </optgroup>
+                </select>
+                <button type="button" id="FindP" name="FindP" hidden="hidden" onclick="FindPlan()">Find Plan</button>
+                </li>
+                <li>
+                    <div>
+                        <ul id="planLoad">
+                        </ul>
+                    </div>
+                </li>
+            </ul>
+        </div>
+
+            <h3>Case Study</h3>
+            <div>
+            <ul style="list-style: none">
+                <li><label>Most Popular Case Study</label></li>
+                @if (bestCase != null)
+                {
+                    <li style="margin-left: 4px">
+                     <a href="~/CaseStudy/PeerCase/@bestCase.id" style="font:bold 13px arial,verdana" title="@bestCase.id">@bestCase.name</a>
+                </li>
+                }
+                else
+                {
+                 <li>
+                     <label>No Case Studies Available</label>
+                 </li>   
+                }            
+                <li>
+                    <label>Find by:</label>
+                    <select onchange="findCase(this)" name="findcase" id="findcase">
+                        <option value=" " selected="selected"></option>
+                        <option value="State">State</option>
+                        <option value="Peer">Peer</option>
+                        <option value="Category">Category</option>
+                    </select>
+                    <select onchange="CasefindState(this)" name="casefindstate" id="casefindstate" hidden="hidden">
+                    <option value=" " selected="selected"></option>
+                    <option value="AL">AL-Alabama</option>
+                    <option value="AK">AK-Alaska</option>
+                    <option value="AZ">AZ-Arizona</option>
+                    <option value="AR">AR-Arkansas</option>
+                    <option value="CA">CA-California</option>
+                    <option value="CO">CO-Colorado</option>
+                    <option value="CT">CT-Connecticut</option>
+                    <option value="DE">DE-Delaware</option>
+                    <option value="DC">DC-District of Columbia</option>
+                    <option value="FL">FL-Florida</option>
+                    <option value="GA">GA-Georgia</option>
+                    <option value="HI">HI-Hawaii</option>
+                    <option value="ID">ID-Idaho</option>
+                    <option value="IL">IL-Illinois</option>
+                    <option value="IN">IN-Indiana</option>
+                    <option value="IA">IA-Iowa</option>
+                    <option value="KS">KS-Kansas</option>
+                    <option value="KY">KY-Kentucky</option>
+                    <option value="LA">LA-Louisiana</option>
+                    <option value="ME">ME-Maine</option>
+                    <option value="MD">MD-Maryland</option>
+                    <option value="MA">MA-Massachusetts</option>
+                    <option value="MI">MI-Michigan</option>
+                    <option value="MN">MN-Minnesota</option>
+                    <option value="MS">MS-Mississippi</option>
+                    <option value="MO">MO-Missouri</option>
+                    <option value="MT">MT-Montana</option>
+                    <option value="NE">NE-Nebraska</option>
+                    <option value="NV">NV-Nevada</option>
+                    <option value="NH">NH-New Hampshire</option>
+                    <option value="NJ">NJ-New Jersey</option>
+                    <option value="NM">NM-New Mexico</option>
+                    <option value="NY">NY-New York</option>
+                    <option value="NC">NC-North Carolina</option>
+                    <option value="ND">ND-North Dakota</option>
+                    <option value="OH">OH-Ohio</option>
+                    <option value="OK">OK-Oklahoma</option>
+                    <option value="OR">OR-Oregon</option>
+                    <option value="PA">PA-Pennsylvania</option>
+                    <option value="RI">RI-Rhode Island</option>
+                    <option value="SC">SC-South Carolina</option>
+                    <option value="SD">SD-South Dakota</option>
+                    <option value="TN">TN-Tennessee</option>
+                    <option value="TX">TX-Texas</option>
+                    <option value="UT">UT-Utah</option>
+                    <option value="VT">VT-Vermont</option>
+                    <option value="VA">VA-Virginia</option>
+                    <option value="WA">WA-Washington</option>
+                    <option value="WV">WV-West Virginia</option>
+                    <option value="WI">WI-Wisconsin</option>
+                    <option value="WY">WY-Wyoming</option>
+                    </select>
+                    <select hidden="hidden" data-placeholder="Category" name="tocatCase" id="tocatCase" style="width:500px; list-style: none;" tabindex="8">
+                     <optgroup label="Leg">
+                      <option id="HamstringCase" value="Hamstring">Hamstring</option>
+                      <option id="QuadCase" value="Quad">Quad</option>
+                      <option id="CalfCase" value="Calf">Calf</option>
+                      <option id="HipCase" value="Hip">Hip</option>
+                      <option id="KneeCase" value="Knee">Knee</option>
+                      <option id="AnkleCase" value="Ankle">Ankle</option>
+                    </optgroup>
+                    <optgroup label="Back">
+                      <option id="MultifidusCase" value="Multifidus">Multifidus</option>
+                      <option id="Transversus AbdominusCase" value="Transversus Abdominus">Transversus Abdominus</option>
+                      <option id="Latissimus dorsiCase" value="Latissimus dorsi">Latissimus dorsi</option>
+                      <option id="TrapeziusCase" value="Trapezius">Trapezius</option>
+                    </optgroup>
+                    <optgroup label="Arm">
+                        <option id="BicepCase" value="Bicep">Bicep</option>
+                        <option id="TricepCase" value="Tricep">Tricep</option>
+                        <option id="ShoulderCase" value="Shoulder">Shoulder</option>
+                        <option id="ElbowCase" value="Elbow">Elbow</option>
+                     </optgroup>
+                    <optgroup label="Other">
+                        <option id="NeckCase" value="Neck">Neck</option>
+                        <option id="AbdomenCase" value="Abdomen">Abdomen</option>
+                    </optgroup>
+                </select>
+                <button type="button" id="FindCS" name="FindCS" onclick="FindCS()" hidden="hidden">Find Case Study</button>
+                </li>
+                <li>
+                    <div>
+                        <ul id="caseLoad">   
+                        </ul>
+                    </div>
+                </li>
+            </ul>
+        </div>
+
+            <h3>RSS Feed</h3>
+    <div>
+        <ul>
+               @{
+        //For each item node we can then ouput what we want
+        var count = 0;
+        foreach (XmlNode node in rssItems)
+        {
+            if (count < 7)
+            {
+            <li>
+                <div class="date">@node["pubDate"].InnerText</div>
+                <a href="@node["link"].InnerText">@node["title"].InnerText</a>
+            </li>
+             }
+            count++;
+        }
+    }
+            </ul>
+        </div>
+        </div>

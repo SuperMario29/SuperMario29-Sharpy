@@ -1,0 +1,71 @@
+﻿@{
+    Layout = "~/_SiteMain.cshtml";
+    Page.Title = "Peer Network";
+    if (WebSecurity.CurrentUserName == "")
+    {
+        Response.Redirect("~/Account/Login");
+    }
+
+    // Initialize general page variables
+    var userName = WebSecurity.CurrentUserName;
+    var userID = WebSecurity.CurrentUserId;
+    var roles = (SimpleRoleProvider)Roles.Provider;
+
+    if (roles.GetRolesForUser(userName).Contains("Client"))
+    {
+        Response.Redirect("~/Premium/ClientHome");
+    }
+    
+    var db = Database.Open("StarterSite");
+
+    var user = db.QueryValue("SELECT [Disabled] FROM UserProfile WHERE LOWER(Email) = LOWER(@0)", userName);
+
+    if (user)
+    {
+        Response.Redirect("~/Account/Disabled Account");
+    }
+
+    var peerQue = db.Query("SELECT [UserProfile].* FROM [UserProfile] INNER JOIN [PeerNet] ON [UserProfile].[UserId]=[PeerNet].[UserId] OR [UserProfile].[UserId]=[PeerNet].[PeerId]  WHERE ([PeerNet].[UserId]=@0 AND [PeerNet].[isfriend]=@1 AND [PeerNet].[isaccepted]=@2 AND [PeerNet].[blocked]=@3) OR ([PeerNet].[PeerId]=@0 AND [PeerNet].[isfriend]=@1 AND [PeerNet].[isaccepted]=@2 AND [PeerNet].[blocked]=@3)", userID, true, true, false).ToList();
+        
+    }
+
+
+@section featured {
+<section class="featured"> 
+     <div class="content-wrapper">  
+<hgroup class="title">
+            <h1>@Page.Title.</h1>
+            <h2>Sharapist: A Network For Therapy</h2>
+</hgroup>
+ <section id="SearchForm"> 
+     <form method="post" id="form1" name="form1" action="" enctype="multipart/form-data">
+             <fieldset>
+                <ul>
+                    <li>
+            <h2>Search Results: </h2>
+                        <div id="list-profile">
+                     <ul data-role="listview">
+                       @foreach (var peer in peerQue)
+                        {
+                           if (peer.UserID != userID)
+                           {
+                          <li>
+                            @if (peer.ProfileImageMIME != null)
+                            {
+                              <img alt="Images from @peer.firstName @peer.lastName" height="50px" width="50px" src="~/Dynamic/PeerImage/@peer.UserId" class="thumbnail-no-border" />
+                            }
+                            else
+                            {
+                            <img style="border:solid" src="~/Images/DefaultProfile.png" alt="" height="50px"  width="50px" />  
+                            }
+                           <a href="~/Profile/PeerView/@peer.UserId" style="font:bold 13px arial,verdana">@peer.firstName @peer.lastName</a>
+                                  </li>
+                           }
+                                     } 
+                                    </ul> 
+                        </div>
+        </form>
+         </section>
+      </div>
+    </section>
+    }

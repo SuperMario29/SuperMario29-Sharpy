@@ -1,0 +1,265 @@
+﻿@section Scripts {
+     <script src="~/Scripts/chosen.jquery.js" type="text/javascript"></script>
+     <script type="text/javascript"> $(".chzn-select").chosen({ "disable_search": true }); $(".chzn-select-deselect").chosen({ allow_single_deselect: true, "disable_search": true }); </script>
+}
+
+@{    
+    var roles = (SimpleRoleProvider)Roles.Provider;
+    var userName = WebSecurity.CurrentUserName;
+    var isGuest = 0;
+    List<dynamic> Queue = new List<dynamic>();
+    List<dynamic> recommendItem = new List<dynamic>();
+
+    if (WebSecurity.CurrentUserName == "")
+    {
+        Layout = "~/_SiteLayout.cshtml";
+    }
+    else if (roles.GetRolesForUser(userName).Contains("Client"))
+    {
+        var db = Database.Open("StarterSite");
+        var userID = WebSecurity.CurrentUserId;
+
+        Layout = "~/_SiteClient.cshtml";
+        isGuest = 1;
+        Queue = db.Query("SELECT [UserProfile].[firstName], [UserProfile].[lastName] FROM [UserProfile]  WHERE [UserProfile].[hasTherapist]=@0", userID).ToList();
+        recommendItem = db.Query("SELECT [UserProfile].[firstName], [UserProfile].[lastName], [Products].* FROM [Products] INNER JOIN [RecommendTable] ON [RecommendTable].[ProductId]=[Products].[id] INNER JOIN [UserProfile] ON [UserProfile].[UserId] = [Products].[UserId] AND [UserProfile].[UserId] = [RecommendTable].[ReceiverId] WHERE [Products].[isAvailable]=@0 AND [RecommendTable].[ReceiverId]=@1", true, userID).ToList();
+    }
+    else
+    {
+        var db = Database.Open("StarterSite");
+        var userID = WebSecurity.CurrentUserId;
+
+        Layout = "~/_SiteMain.cshtml";
+        isGuest = 2;
+        Queue = db.Query("SELECT [UserProfile].* FROM [UserProfile] INNER JOIN [PeerNet] ON [UserProfile].[UserId]=[PeerNet].[UserId] OR [UserProfile].[UserId]=[PeerNet].[PeerId]  WHERE ([PeerNet].[UserId]=@0 AND [PeerNet].[isfriend]=@1 AND [PeerNet].[isaccepted]=@2 AND [PeerNet].[blocked]=@3) OR ([PeerNet].[PeerId]=@0 AND [PeerNet].[isfriend]=@1 AND [PeerNet].[isaccepted]=@2 AND [PeerNet].[blocked]=@3)", userID, true, true, false).ToList();
+        recommendItem = db.Query("SELECT [UserProfile].[firstName], [UserProfile].[lastName], [Products].* FROM [Products] INNER JOIN [RecommendTable] ON [RecommendTable].[ProductId]=[Products].[id] INNER JOIN [UserProfile] ON [UserProfile].[UserId] = [Products].[UserId] AND [UserProfile].[UserId] = [RecommendTable].[ReceiverId] WHERE [Products].[isAvailable]=@0 AND [RecommendTable].[ReceiverId]=@1", true, userID).ToList();
+    }
+
+    Page.Title = "Marketplace";
+
+}
+ <script type="text/javascript">
+     $(function () {
+         $("#accord").accordion();
+         $("#accordion").accordion("option", "icons", null);
+     });
+</script>
+<hgroup class="title">
+    <h1>@Page.Title.</h1>
+    <h2>Sharapist: A Network For Therapy</h2>
+</hgroup>
+
+<div id="accord">
+    <li>
+            <h3>Find Products</h3>
+        <ul>
+            <li>
+         <h4>By State:</h4>
+ <select name="productfindstate" id="productfindstate">
+                        <option value="" selected="selected"></option>
+                    <option value="AL">AL-Alabama</option>
+                    <option value="AK">AK-Alaska</option>
+                    <option value="AZ">AZ-Arizona</option>
+                    <option value="AR">AR-Arkansas</option>
+                    <option value="CA">CA-California</option>
+                    <option value="CO">CO-Colorado</option>
+                    <option value="CT">CT-Connecticut</option>
+                    <option value="DE">DE-Delaware</option>
+                    <option value="DC">DC-District of Columbia</option>
+                    <option value="FL">FL-Florida</option>
+                    <option value="GA">GA-Georgia</option>
+                    <option value="HI">HI-Hawaii</option>
+                    <option value="ID">ID-Idaho</option>
+                    <option value="IL">IL-Illinois</option>
+                    <option value="IN">IN-Indiana</option>
+                    <option value="IA">IA-Iowa</option>
+                    <option value="KS">KS-Kansas</option>
+                    <option value="KY">KY-Kentucky</option>
+                    <option value="LA">LA-Louisiana</option>
+                    <option value="ME">ME-Maine</option>
+                    <option value="MD">MD-Maryland</option>
+                    <option value="MA">MA-Massachusetts</option>
+                    <option value="MI">MI-Michigan</option>
+                    <option value="MN">MN-Minnesota</option>
+                    <option value="MS">MS-Mississippi</option>
+                    <option value="MO">MO-Missouri</option>
+                    <option value="MT">MT-Montana</option>
+                    <option value="NE">NE-Nebraska</option>
+                    <option value="NV">NV-Nevada</option>
+                    <option value="NH">NH-New Hampshire</option>
+                    <option value="NJ">NJ-New Jersey</option>
+                    <option value="NM">NM-New Mexico</option>
+                    <option value="NY">NY-New York</option>
+                    <option value="NC">NC-North Carolina</option>
+                    <option value="ND">ND-North Dakota</option>
+                    <option value="OH">OH-Ohio</option>
+                    <option value="OK">OK-Oklahoma</option>
+                    <option value="OR">OR-Oregon</option>
+                    <option value="PA">PA-Pennsylvania</option>
+                    <option value="RI">RI-Rhode Island</option>
+                    <option value="SC">SC-South Carolina</option>
+                    <option value="SD">SD-South Dakota</option>
+                    <option value="TN">TN-Tennessee</option>
+                    <option value="TX">TX-Texas</option>
+                    <option value="UT">UT-Utah</option>
+                    <option value="VT">VT-Vermont</option>
+                    <option value="VA">VA-Virginia</option>
+                    <option value="WA">WA-Washington</option>
+                    <option value="WV">WV-West Virginia</option>
+                    <option value="WI">WI-Wisconsin</option>
+                    <option value="WY">WY-Wyoming</option>
+                    </select>
+</li>
+<li>
+    <h4>By Category:</h4>
+ <select data-placeholder="Category" name="tocatProduct" id="tocatProduct" style="width:500px; list-style: none;" multiple class="chzn-select" tabindex="8">
+                     <optgroup label="Leg">
+                      <option id="Hamstring" value="Hamstring">Hamstring</option>
+                      <option id="Quad" value="Quad">Quad</option>
+                      <option id="Calf" value="Calf">Calf</option>
+                      <option id="Hip" value="Hip">Hip</option>
+                      <option id="Knee" value="Knee">Knee</option>
+                      <option id="Ankle" value="Ankle">Ankle</option>
+                    </optgroup>
+                    <optgroup label="Back">
+                      <option id="Multifidus" value="Multifidus">Multifidus</option>
+                      <option id="Transversus Abdominus" value="Transversus Abdominus">Transversus Abdominus</option>
+                      <option id="Latissimus dorsi" value="Latissimus dorsi">Latissimus dorsi</option>
+                      <option id="Trapezius" value="Trapezius">Trapezius</option>
+                    </optgroup>
+                    <optgroup label="Arm">
+                        <option id="Bicep" value="Bicep">Bicep</option>
+                        <option id="Tricep" value="Tricep">Tricep</option>
+                        <option id="Shoulder" value="Shoulder">Shoulder</option>
+                        <option id="Elbow" value="Elbow">Elbow</option>
+                     </optgroup>
+                    <optgroup label="Other">
+                        <option id="Neck" value="Neck">Neck</option>
+                        <option id="Abdomen" value="Abdomen">Abdomen</option>
+                    </optgroup>
+                </select>
+</li>
+    @if (isGuest == 2)
+    {
+    <li>
+<h4>By Peer:</h4>
+        <select data-placeholder="Find Peer" name="topeer" id="toPeer" style="width:500px; list-style: none;" class="chzn-select" tabindex="8">
+                                    <option value=" " selected="selected"></option>        
+            @foreach (var item in Queue)
+                    {
+                        <option value="@item.UserID">@item.firstName @item.lastName</option>
+                    }
+                </select>  
+    </li>
+               <li>
+<h4>Recommended Items:</h4>
+        <ul style="list-style: none">
+            @if (recommendItem.Count() > 0)
+            {
+                <li>
+                          <table style="max-height: 300px; max-width: 300px" id="SelectTable">
+                              <tr>
+                                  <th>Product Name</th>
+                                  <th>Seller</th>
+                                  <th>Delete?</th>
+                              </tr>
+                             @foreach (var item in recommendItem)
+                             {
+                              <tr id="RI+@item.id">
+                                  <td>
+                       <a href="~/MarketPlace/ItemRecom/@item.id" style="font:bold 13px arial,verdana">@item.name</a>
+                                      </td>
+                                  <td>
+                                      <p>@item.firstName @item.lastName</p>
+                                  </td>
+                                  <td>
+                       <img src="~/Images/Minus.png" style="width: 30px; height: 30px" onclick="RemoveProduct(@item.id)" />
+                      </td>
+                                      </tr>
+                             }
+                                  </table>
+                    </li>
+            }
+            else
+            {
+             <li>
+                        <label>No recommended products.</label>
+                    </li>    
+            }
+                </ul>
+    </li> 
+    }
+     @if (isGuest == 1)
+     {
+    <li>
+<h4>By Therapist/Trainer:</h4>
+        <select data-placeholder="Find Therapist/Trainer" name="toT" id="toT" style="width:500px; list-style: none;" multiple class="chzn-select" tabindex="8">
+                    @foreach (var item in Queue)
+                    {
+                        <option value="@item.UserID">@item.firstName @item.lastName</option>
+                    }
+                </select> 
+    </li>
+        <li>
+<h4>Recommended Items:</h4>
+        <ul style="list-style: none">
+            @if (recommendItem.Count() > 0)
+            {
+                <li>
+                          <table style="max-height: 300px; max-width: 300px" id="SelectTable">
+                              <tr>
+                                  <th>Product Name</th>
+                                  <th>Seller</th>
+                                  <th>Delete?</th>
+                              </tr>
+                             @foreach (var item in recommendItem)
+                             {
+                              <tr id="RI+@item.id">
+                                  <td>
+                       <a href="~/MarketPlace/ItemRecom/@item.id" style="font:bold 13px arial,verdana">@item.name</a>
+                                      </td>
+                                  <td>
+                                      <p>@item.firstName @item.lastName</p>
+                                  </td>
+                                  <td>
+                       <img src="~/Images/Minus.png" style="width: 30px; height: 30px" onclick="RemoveProduct(@item.id)" />
+                      </td>
+                                      </tr>
+                             }
+                                  </table>
+                    </li>
+            }
+            else
+            {
+             <li>
+                        <label>No recommended products.</label>
+                    </li>    
+            }
+                </ul>
+    </li> 
+     }
+    <li>
+        @if (isGuest == 0)
+        {
+           <button type="button" id="FindP" name="FindP"  onclick="FindProductGuest()">Find Product</button>
+        }
+        @if (isGuest == 1)
+        {
+                       <button type="button" id="FindP1" name="FindP"  onclick="FindProductClient()">Find Product</button>
+
+        }
+        @if (isGuest == 2)
+        {
+                       <button type="button" id="FindP2" name="FindP"  onclick="FindProduct()">Find Product</button>
+
+        }
+        </li>
+            </ul>
+        </div>
+        <div id="list-search">
+        <h4>Search Results</h4>
+                        <ul id="productLoad" style="max-height: 400px; width: 400px">
+                        </ul>
+            </div>
+     </li>
+</div>

@@ -1,0 +1,107 @@
+﻿@{
+    Layout = "~/_SiteMain.cshtml";
+    Page.Title = "Use Patient Plan";
+    if (WebSecurity.CurrentUserName == "")
+    {
+        Response.Redirect("~/Account/Login");
+    }
+    
+    // Initialize general page variables
+    var userName = WebSecurity.CurrentUserName;
+    var userID = WebSecurity.CurrentUserId;
+    var roles = (SimpleRoleProvider)Roles.Provider;
+
+    if (roles.GetRolesForUser(userName).Contains("Client"))
+    {
+        Response.Redirect("~/Premium/ClientHome");
+    }
+    
+    var db = Database.Open("StarterSite");
+
+    var user = db.QueryValue("SELECT [Disabled] FROM UserProfile WHERE LOWER(Email) = LOWER(@0)", userName);
+
+    if (user)
+    {
+        Response.Redirect("~/Account/Disabled Account");
+    } 
+        
+    var planQue = db.Query("SELECT PlanImageName, PlanImageMIME, PlanImage, id, [name] FROM [Plans] WHERE [UserId]=@0", userID).ToList();
+    var pre_planQue = db.Query("SELECT PlanImageName, PlanImageMIME, PlanImage, id, [name] FROM [PlanPrem] WHERE [therapistId]=@0", userID).ToList();
+    
+    
+
+    // If this is a POST request, validate and process data          
+  }
+
+ 
+ @section featured {
+<section class="featured"> 
+     <div class="content-wrapper">  
+<hgroup class="title">
+            <h1>@Page.Title.</h1>
+            <h2>Sharapist: A Network For Therapy</h2>
+</hgroup>
+<section id="PlanForm">
+            <div>
+                <ul style="list-style: none;">
+                    <li>
+                <h2>Available Plans: </h2>
+                <table style="max-height: 300px; max-width: 400px">
+                    <tr>
+                        <th>Plan</th>
+                    </tr>
+              @foreach (var item in planQue)
+                {
+                            <tr>
+                                <td>
+                        @if (item.PlanImageMIME != null)
+                         {
+                            <a href="~/Plan/UseExercise/@item.id">
+                      <img src="~/Dynamic/downloadPlanImage/@item.id" alt="Plan Image" style=" height: 30px; width: 30px;"  title="@item.name" />
+                                </a>
+                         }
+                       else
+                         {
+                            <a href="~/Plan/UseExercise/@item.id">
+                      <img src="~/Images/QuestionMark.png" alt="Default Plan Image" title="@item.name" style="height: 30px; width: 30px; background-size: 30px"  />
+                                </a>   
+                         }    
+                                    </td>
+                                <td>                     
+                            <a href="~/Plan/UseExercise/@item.id" title="@item.name">@item.name</a>
+                                </td>
+                                    </tr>
+                }
+                     @foreach (var item in pre_planQue)
+                {
+                            <tr>
+                                <td>
+                        @if (item.PlanImageMIME != null)
+                         {
+                            <a href="~/Plan/PreUseExercise/@item.id">
+                      <img src="~/Dynamic/downloadPlanImage/@item.id" alt="Plan Image"  style=" height: 30px; width: 30px;"  title="@item.name" />
+                                </a>
+                         }
+                       else
+                         {
+                            <a href="~/Plan/PreUseExercise/@item.id">
+                      <img src="~/Images/QuestionMark.png" alt="Default Plan Image" title="@item.name" style="height: 30px; width: 30px; background-size: 30px"  />
+                                </a>   
+                         }    
+                                    </td>
+                                <td>                     
+                            <a href="~/Plan/PreUseExercise/@item.id" title="@item.name">@item.name</a>
+                                </td>
+                                <td>
+                                    <img src="~/Images/Gift.png" title="Premium Plan" />
+                                </td>
+                                    </tr>
+                } 
+            </table>
+                    </li>
+                    </ul>
+                </div>
+    </section>
+         </div>
+     </section>
+        }

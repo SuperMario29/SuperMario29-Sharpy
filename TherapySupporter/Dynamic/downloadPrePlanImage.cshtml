@@ -1,0 +1,27 @@
+﻿@{    
+    if (WebSecurity.CurrentUserName == "")
+    {
+        Response.Redirect("~/Account/Login");
+    }
+     Response.OutputCache(60);
+
+     if(UrlData[0].IsInt())
+     {
+    var galleryId = UrlData[0].AsInt();
+    
+    var db = Database.Open("StarterSite");
+    
+    var sql = "Select * FROM [PlanPrem] WHERE id = @0";
+    var file = db.QuerySingle(sql, galleryId);
+    if (file.PlanImageMIME.StartsWith("image/"))
+    {
+        Response.AddHeader("content-disposition", "inline; filename=" + file.PlanImageName);
+    }
+    else
+    {
+        Response.AddHeader("content-disposition", "attachment; filename=" + file.PlanImageName);
+    }
+    Response.ContentType = file.PlanImageMIME;
+    Response.BinaryWrite((byte[])file.PlanImage);
+     }
+}

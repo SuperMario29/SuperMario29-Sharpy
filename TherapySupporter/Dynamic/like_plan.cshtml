@@ -1,0 +1,16 @@
+﻿@{
+    if (WebSecurity.CurrentUserName == "")
+    {
+        Response.Redirect("~/Account/Login");
+    }
+    Response.OutputCache(60);
+    if(UrlData[0].IsInt() && UrlData[1].IsInt())
+    {
+    var id = UrlData[0].AsInt();
+    var favorite = UrlData[1].AsInt();
+
+    var db = Database.Open("StarterSite");
+
+    db.Execute("UPDATE [Plans] SET [favorite]=@0 WHERE [id]=@1", favorite + 1, id);
+    }
+}

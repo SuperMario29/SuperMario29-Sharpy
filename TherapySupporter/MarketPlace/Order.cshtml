@@ -1,0 +1,82 @@
+﻿@{
+    var roles = (SimpleRoleProvider)Roles.Provider;
+    var userName = WebSecurity.CurrentUserName;
+
+    if (WebSecurity.CurrentUserName == "")
+    {
+        Layout = "~/_SiteLayout.cshtml";
+    }
+    else if (roles.GetRolesForUser(userName).Contains("Client"))
+    {
+        Layout = "~/_SiteClient.cshtml";
+    }
+    else
+    {
+        Layout = "~/_SiteMain.cshtml";
+    }
+    
+    Page.Title = "Place Your Order";
+
+    var db = Database.Open("StarterSite");
+    var productId = UrlData[0].AsInt();
+    var price = Request["price"].AsDecimal();
+    var commandText = string.Empty;
+    
+    var findOwner = db.QuerySingle("SELECT [UserProfile].* FROM [UserProfile] INNER JOIN [Products] ON [UserProfile].[UserId]=[Products].[UserId] WHERE [Products].[id]=@0", productId);
+    if (findOwner == null)
+    {
+        Response.Redirect("~/Home");
+    }    
+    commandText = "SELECT * FROM [Products] WHERE [Products].[id]=@0 AND [Products].[Visibility]=2";
+    var product = db.QuerySingle(commandText, productId);
+    if (product == null) {
+        Response.Redirect("~/");
+    }
+}
+<script src="@Href("~/Scripts/paypal-button-minicart.min.js")" type="text/javascript"></script>
+
+<ol id="orderProcess">
+    <li><span class="step-number"></span><a href="~/">Choose Item</a></li>
+    <li class="current"><span class="step-number"></span>Place Order</li>
+</ol>
+
+<h1>Place Your Order: @product.Name</h1>
+<form method="post" action="https://www.paypal.com/cgi-bin/webscr">
+    <fieldset class="no-legend">
+        <legend>Place Your Order</legend>
+        @if (product.ProductImageMIME != null)
+                                            {
+        <img class="product-image order-image" height="100" width="100" src="~/Dynamic/downloadProductImage/@product.id" alt="Image of @product.Name"/>
+                                            }
+                                            else
+                                            {
+                                    <img src="~/Images/QuestionMark.png" alt="" height="100"  width="100" />   
+                                            } 
+        <ul class="orderPageList" data-role="listview" style="list-style: none">
+            <li>
+                <div>
+                    <label for="orderDescription">Description: </label>
+                    <p class="description">@product.Description</p>
+                </div>
+            </li>
+            <li class="quantity">
+                <div class="fieldcontainer" data-role="fieldcontain">
+                    <label for="orderQty">Price: </label>
+                    <span id="orderPrice">@string.Format("{0:f}", product.Price)</span>
+                </div>
+            </li>
+        </ul>
+        <p class="actions">
+            <script
+                data-callback="http://www.sharapist.com" 
+                data-env="sandbox" 
+                data-name="@product.Name"
+                data-amount= "@product.Price"
+                data-button="cart" src="/Scripts/paypal-button-minicart.min.js?merchant=@findOwner.PayPal"
+            ></script>
+            <script>
+                PAYPAL.apps.MiniCart.render();
+            </script>
+        </p>
+    </fieldset>
+</form>

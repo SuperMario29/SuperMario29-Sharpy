@@ -1,0 +1,140 @@
+﻿
+@{
+    Layout = "~/_SiteMain.cshtml";
+    Page.Title = "Edit Profile";
+    if (WebSecurity.CurrentUserName == "")
+    {
+        Response.Redirect("~/Account/Login");
+    }
+    //var caseStudies = new List<SelectListItem>();
+    //var planList = new List<SelectListItem>();
+    var occupation = "";
+    var firstname = "";
+    var lastname = "";
+    var experience = "";
+    var about = "";
+    var userName = WebSecurity.CurrentUserName;
+    var userID = WebSecurity.CurrentUserId;
+    var roles = (SimpleRoleProvider)Roles.Provider;
+    var countLimitAbout = 2000;
+    var countLimitEx = 2000;
+    var isDirect = false;
+    var paypal = "";
+
+
+    if (roles.GetRolesForUser(userName).Contains("Client"))
+    {
+        Response.Redirect("~/Premium/ClientHome");
+    }
+
+    Validation.RequireField("email", "You must specify an email address.");
+
+    
+      var db = Database.Open("StarterSite");
+
+            // Check if user already exists
+            var user = db.QuerySingle("SELECT * FROM UserProfile WHERE LOWER(Email) = LOWER(@0)", userName);
+            if (user != null) {
+               occupation = user.Occupation;
+                firstname = user.firstName;
+                lastname = user.lastName;
+                experience = user.Experience;
+                about = user.About;
+                countLimitAbout = 2000 - user.About.Length;
+                countLimitEx = 2000 - user.Experience.Length;
+                isDirect = user.isFlag;
+                paypal = user.PayPal;
+
+                if (user.Disabled)
+                {
+                    Response.Redirect("~/Account/Disabled Account");
+                }                            
+            }
+
+            
+            
+            if(IsPost)
+            {
+
+                occupation = Request.Form["occupation"];
+                experience = Request.Form["experience"];
+                about = Request.Form["about"];
+                var Direct = Request.Form["isDirect"];
+                paypal = Request.Form["paypal"];
+                
+                
+                if (Direct == "on")
+                {
+                    isDirect = true;
+                }
+                else
+                {
+                    isDirect = false;
+                }
+
+                db.Execute("UPDATE UserProfile SET  [Occupation]=@0, [Experience]=@1, [About]= @2, [isFlag]=@3, [PayPal]=@4 WHERE [UserId] = @5", occupation, experience, about, isDirect, paypal, userID);
+
+                Response.Redirect("~/Profile/Profile");
+             
+             }
+         }
+
+@section featured {
+<section class="featured">
+    <div class="content-wrapper">
+        <hgroup class="title">
+            <h1>@Page.Title.</h1>
+            <h2>Sharapist: A Network For Therapy</h2>
+        </hgroup>
+        <div/>
+       <form method="post">
+         @AntiForgery.GetHtml()
+        <ul style="list-style: none">
+        <li>
+                <label>Email: @WebSecurity.CurrentUserName</label>
+            </li>
+            <li>
+                <label>Occupation:</label>
+               <select id="occupation" name="occupation" size="1" >
+                    <option value="@occupation" selected="selected">@occupation</option>
+                    <option value="Physical Therapist">Physical Therapist</option>
+                    <option value="Occupational Therapist">Occupational Therapist</option>
+                    <option value="Personal Trainer">Personal Trainer</option>
+                    <option value="Student">Student</option>
+                   </select>
+                </li>
+            <li>
+                <label>Experience:</label>
+                <textarea name="experience" id="experience" style="height:150px" onKeyDown="limitText(this.form.experience,this.form.countdown,2000);" 
+onKeyUp="limitText(this.form.experience,this.form.countdown,2000);" maxlength="2000">@experience</textarea>
+                    <br />
+                    <font size="1">(Maximum characters: 2000)<br>
+                You have <input readonly="" type="text" style="width: 50px" name="countdown" size="3" value="@countLimitEx"> characters left.</font>
+                </li>
+            <li>
+                    <label >About Me:</label>
+                <textarea name="about" id="about" style="height:150px" onKeyDown="limitText(this.form.about,this.form.countdown1,2000);" 
+                onKeyUp="limitText(this.form.about,this.form.countdown1,2000);" maxlength="2000">@about</textarea>
+                    <br />
+                    <font size="1">(Maximum characters: 2000)<br>
+                You have <input readonly="" type="text" style="width: 50px" name="countdown1" size="3" value="@countLimitAbout"> characters left.</font>
+                </li>
+            <li>
+                    @if(isDirect)
+                    {
+                      <label>Direct Access Certified?: </label><input type="checkbox" checked="checked" name="isDirect" />  
+                    }
+                    else
+                    {
+                     <label>Direct Access Certified?: </label><input type="checkbox" name="isDirect" />    
+                    }
+                </li>
+            <li>
+                <label>Register to PayPal Account?: </label><input type="text" id="paypal" name="paypal" value="@paypal" title="Your merchant account ID is on your PayPal account profile page" />
+            </li>
+        </ul>
+                    <input type="submit" value="Update Info" />
+                    </form>
+        </div>
+    </section>
+        }

@@ -1,0 +1,60 @@
+﻿@using System.Xml;
+@using System.Xml.XPath;
+
+@{
+    Layout = "~/_SiteMain.cshtml";
+    Page.Title = "Web Administrator";
+
+    if (WebSecurity.CurrentUserName == "")
+    {
+        Response.Redirect("~/Account/Login");
+    }
+    
+    var email = WebSecurity.CurrentUserName;
+    var userID = WebSecurity.CurrentUserId;
+    var roles = (SimpleRoleProvider)Roles.Provider;
+
+    if (roles.GetRolesForUser(email).Contains("Admin"))
+    {
+        Response.Redirect("~/Home");
+    }
+
+    var db = Database.Open("StarterSite");
+
+    var numberofUsers = db.Query("SELECT * FROM [UserProfile]");
+
+}
+
+ <script type="text/javascript">
+$(function() {
+    $("#accord").accordion();
+    $("#accordion").accordion("option", "icons", null);
+});
+</script>
+<hgroup class="title">
+    <h1>@Page.Title.</h1>
+    <h2>Sharapist: A Network For Therapy</h2>
+</hgroup>
+
+<div id="accord">
+            <h3>Number of Users</h3>
+        <div>
+            <ul style="list-style: none">
+                <li>
+                  
+                </li>
+            </ul>
+        </div>
+
+            <h3>Case Study</h3>
+            <div>
+            <ul style="list-style: none">
+               
+            </ul>
+        </div>
+    
+            <h3>RSS Feed</h3>
+    <div>
+        
+        </div>
+        </div>

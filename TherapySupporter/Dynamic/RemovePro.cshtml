@@ -1,0 +1,18 @@
+﻿@{
+    if (WebSecurity.CurrentUserName == "")
+    {
+        Response.Redirect("~/Account/Login");
+    }
+    Response.OutputCache(60);
+    if(UrlData[0].IsInt())
+    {
+    
+    var userID = WebSecurity.CurrentUserId;
+        
+    var id = UrlData[0].AsInt();
+
+    var db = Database.Open("StarterSite");
+
+    db.Execute("DELETE FROM [RecommendTable] WHERE [ProductId]=@0 AND [ReceiverId]=@1", id, userID);
+    }
+}

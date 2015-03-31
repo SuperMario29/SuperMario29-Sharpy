@@ -1,0 +1,15 @@
+﻿@{
+    if (WebSecurity.CurrentUserName == "")
+    {
+        Response.Redirect("~/Account/Login");
+    }
+    Response.OutputCache(60);
+    if(UrlData[0].IsInt())
+    {
+    var id = UrlData[0].AsInt();
+
+    var db = Database.Open("StarterSite");
+
+    db.Execute("INSERT INTO [FlaggedUser] ([UserId], [timestamp]) VALUES (@0,@1)", id, System.DateTime.Now);
+    }
+}

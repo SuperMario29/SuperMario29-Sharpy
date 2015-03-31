@@ -1,0 +1,120 @@
+﻿@section Scripts {
+     <script src="~/Scripts/chosen.jquery.js" type="text/javascript"></script>
+     <script type="text/javascript"> $(".chzn-select").chosen(); $(".chzn-select-deselect").chosen({ allow_single_deselect: true }); </script>
+}
+
+@{
+    Layout = "~/_SiteMain.cshtml";
+    Page.Title = "Edit Product";
+    if (WebSecurity.CurrentUserName == "")
+    {
+        Response.Redirect("~/Account/Login");
+    }
+
+    // Initialize general page variables
+    var userName = WebSecurity.CurrentUserName;
+    var userID = WebSecurity.CurrentUserId;
+    var roles = (SimpleRoleProvider)Roles.Provider;
+
+    Response.OutputCache(60);
+
+    if (!UrlData[0].IsInt())
+    {
+        Response.Redirect("~/Profile/Profile");
+    }
+
+    if (WebSecurity.CurrentUserName == "")
+    {
+        Layout = "~/_SiteLayout.cshtml";
+    }
+    else if (roles.GetRolesForUser(userName).Contains("Client"))
+    {
+        Layout = "~/_SiteClient.cshtml";
+    }
+    else
+    {
+        Layout = "~/_SiteMain.cshtml";
+    }
+
+    Page.Title = "Item Details";
+
+    var db = Database.Open("StarterSite");
+    var productId = UrlData[0].AsInt();
+    var price = Request["price"].AsDecimal();
+    var commandText = string.Empty;
+
+    var findOwner = db.QuerySingle("SELECT [UserProfile].* FROM [UserProfile] INNER JOIN [Products] ON [UserProfile].[UserId]=[Products].[UserId] WHERE [Products].[id]=@0", productId);
+    if (findOwner == null)
+    {
+        Response.Redirect("~/Home");
+    }
+    commandText = "SELECT * FROM [Products] INNER JOIN [RecommendTable] ON [RecommendTable].[ProductId]=[Products].[id] WHERE [Products].[id]=@0 AND [Products].[Visibility]=1";
+    var product = db.QuerySingle(commandText, productId);
+    if (product == null)
+    {
+        Response.Redirect("~/");
+    }
+    if (product.wasSeen == false)
+    {
+        db.Execute("UPDATE [RecommendTable] SET [wasSeen]=@0 WHERE [ProductId]=@1", true, productId);
+    }
+    
+  }
+
+
+ @section featured {
+<section class="featured"> 
+     <div class="content-wrapper">  
+<hgroup class="title">
+            <h1>@Page.Title.</h1>
+            <h2>Sharapist: A Network For Therapy</h2>
+</hgroup>
+<section id="PlanForm">
+        <form name="form1"  method="post" enctype="multipart/form-data">
+            <div>
+                   <h3>Product Information</h3>
+                            <ul style="list-style: none">
+                                  @if (product.ProductImageMIME != null)
+                                            {
+        <img class="product-image order-image" height="100" width="100" src="~/Dynamic/downloadProductImage/@product.id" alt="Image of @product.Name"/>
+                                            }
+                                            else
+                                            {
+                                    <img src="~/Images/QuestionMark.png" alt="" height="100"  width="100" />   
+                                            } 
+                    <li>
+                    <label>Product Name: </label>
+                <p>@product.Name</p>
+                          </li>
+                                <li>
+                                    <label id="Description">Description</label>
+                                    <p>@product.Description</p>
+                                </li>
+                                            <li>
+                
+             <li>
+                 <label>Product Category</label>
+                <select data-placeholder="Category" name="tocat" id="tocat" style="width:500px; list-style: none;" multiple class="chzn-select" tabindex="8">
+                    @if(product.Group != null)
+                    {
+                        foreach (var item in product.Group.Split(','))
+                    {
+                      <option id="@item" selected="selected" value="@item">@item</option>  
+                    }
+                    }
+                </select>
+             </li>
+                                <li>
+                                    <label>Price</label>
+                                    <p>$@product.Price</p>
+                                </li>
+                    <li>
+                       <a href="~/MarketPlace/OrderRecom/@product.id" style="font:bold 13px arial,verdana">Order Now!!</a>
+                    </li>
+                </ul>
+           </div>
+            </form>
+    </section>
+         </div>
+     </section>
+                     }

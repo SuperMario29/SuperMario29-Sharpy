@@ -1,0 +1,24 @@
+﻿@{
+    if (WebSecurity.CurrentUserName == "")
+    {
+        Response.Redirect("~/Account/Login");
+    }
+    Response.OutputCache(60);
+    if(UrlData[0].IsInt() && UrlData[1].IsInt() && !UrlData[2].IsEmpty())
+    {
+    var id = UrlData[0].AsInt();
+    var user_id = UrlData[1].AsInt();
+    var favorite = UrlData[2];
+
+    bool favor = true;
+    
+     if (favorite == "true")
+     {
+         favor = false;
+     }
+
+    var db = Database.Open("StarterSite");
+
+    db.Execute("UPDATE [CaseStudies] SET [userFavorite]=@0 WHERE [UserId]=@1 AND [id]=@2", favor, user_id, id);
+    }
+}

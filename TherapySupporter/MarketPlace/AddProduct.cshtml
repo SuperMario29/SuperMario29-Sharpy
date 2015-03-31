@@ -1,0 +1,209 @@
+﻿@section Scripts {
+     <script src="~/Scripts/chosen.jquery.js" type="text/javascript"></script>
+     <script type="text/javascript"> $(".chzn-select").chosen(); $(".chzn-select-deselect").chosen({ allow_single_deselect: true }); </script>
+}
+
+@{
+    Layout = "~/_SiteMain.cshtml";
+    Page.Title = "Create/Modify Plan";
+    if (WebSecurity.CurrentUserName == "")
+    {
+        Response.Redirect("~/Account/Login");
+    }
+
+    // Initialize general page variables
+    var visibility = 2;
+    var type = 0;
+    var proName = "";
+    var proID = "";
+    var userName = WebSecurity.CurrentUserName;
+    var userID = WebSecurity.CurrentUserId;
+    var fileName = "";
+    var fileMime = "";
+    var timestamp = "";
+    var isAvailable = false;
+    var roles = (SimpleRoleProvider)Roles.Provider;
+    Validation.RequireField("proName", "You must specify an product name.");
+    Validation.RequireField("description", "Description cannot be blank.");
+    Validation.RequireField("price", "The price cannot be blank.");
+    Validation.RequireField("proID", "You must specify an product name.");
+
+    if (roles.GetRolesForUser(userName).Contains("Client"))
+    {
+        Response.Redirect("~/Premium/ClientHome");
+    }
+    if (roles.GetRolesForUser(userName).Contains("Physical Therapist") || roles.GetRolesForUser(userName).Contains("Student: PT"))
+    {
+        type = 1;
+    }
+    if (roles.GetRolesForUser(userName).Contains("Occupational Therapist") || roles.GetRolesForUser(userName).Contains("Student: OT"))
+    {
+        type = 2;
+    }
+    if (roles.GetRolesForUser(userName).Contains("Personal Trainer"))
+    {
+        type = 3;
+    }
+
+    var db = Database.Open("StarterSite");
+
+    var user = db.QuerySingle("SELECT * FROM UserProfile WHERE LOWER(Email) = LOWER(@0)", userName);
+
+    if (user.Disabled)
+    {
+        Response.Redirect("~/Account/Disabled Account");
+    }
+
+    // If this is a POST request, validate and process data
+    if (IsPost)
+    {
+        if(Validation.IsValid())
+          {
+        proName = Request.Form["proName"];
+        visibility = Convert.ToInt32(Request.Form["proVis"]);
+        var quantity = Request.Form["quantity"];
+        var category = Request.Form["tocat"];
+        var description = Request.Form["description"];
+        var price = Request.Form["price"];
+        var productID = Request.Form["proID"];
+
+        if (quantity == "on")
+        {
+            isAvailable = true;
+        }
+        else
+        {
+            isAvailable = false;
+        }
+        
+        if (price == null)
+        {
+            price = "0.00";   
+        }
+        
+        if (category == null)
+        {
+            category = "";
+        }
+        
+        if (Request.Form["btnSubmit"] == "Submit Product" && proName != "")
+        {
+            
+                    timestamp = Request.Form["timestamp"];
+                    var uploadedF = Request.Files[0];
+                    fileName = Path.GetFileName(uploadedF.FileName);
+                    if (fileName != String.Empty)
+                    {
+                        fileMime = uploadedF.ContentType;
+                        var fileStream = uploadedF.InputStream;
+                        var fileLength = uploadedF.ContentLength;
+                        byte[] fileContent = new byte[fileLength];
+                        fileStream.Read(fileContent, 0, fileLength);
+                        db.Execute("INSERT INTO [Products] ([UserId], [Name], [ProductID], [isAvailable], [ProductImage], [ProductImageName], [ProductImageMIME], [Group], [timestamp], [Rating], [Description], [isFlag], [Price], [Visibility]) VALUES (@0, @1, @2, @3, @4, @5, @6, @7,@8,@9,@10,@11,@12,@13)", userID, proName, productID, isAvailable, fileContent, fileMime, fileName, category, timestamp, 0, description, false, price, visibility);
+                    }
+                    else
+                    {
+                        db.Execute("INSERT INTO [Products] ([UserId], [Name], [ProductID], [isAvailable], [Group], [timestamp], [Rating], [Description], [isFlag], [Price], [Visibility]) VALUES (@0, @1, @2, @3, @4,@5,@6,@7,@8,@9,@10)", userID, proName, productID, isAvailable, category, timestamp, 0, description, false, price, visibility);
+                    }
+
+                    Response.Redirect("~/Profile/Profile");
+                }
+        }
+    }
+    }
+    
+
+<script>
+    function myFunction() {
+        alert("Before you can add a product, you must have a Merchant ID for PayPal. Please add a Merchant ID in Edit Profile"); document.location.href = "/Profile/EditProfile";
+    }
+</script>
+
+@if(user.PayPal == null)
+{
+<body onload="myFunction()">
+    </body>
+    }
+
+ @section featured {
+<section class="featured"> 
+     <div class="content-wrapper">  
+<hgroup class="title">
+            <h1>@Page.Title.</h1>
+            <h2>Sharapist: A Network For Therapy</h2>
+</hgroup>
+<section id="PlanForm">
+        <form name="form1"  method="post" enctype="multipart/form-data">
+            <div>
+                                    <h3>Product Information</h3>
+                            <ul style="list-style: none">
+                                <li>
+                <label>Product ID: </label>
+                <input type="text" id="proID" name="proID" maxlength="300" />
+                                </li>
+                    <li>
+                    <label>Product Name: </label>
+                <input type="text" id="proName" name="proName" value="" maxlength="300" />
+                          </li>
+                    <li>
+                        <label>Product Image: </label>
+                            <input type="file" name="fileUpload"/>
+                    </li>
+                                <li>
+                                    <label id="QuantityLab">In Stock?</label>
+                                    <input type="checkbox" name="quantity" id="quantity" />
+                                </li>
+                                <li>
+                                    <label id="Description">Description</label>
+                                    <input type="text" name="description" id="description" />
+                                </li>
+                                            <li>
+                <label id="proLabelVis">Product Visibility</label>
+                 <select id="proVis" name="proVis" size="1" >
+                    <option value="2" selected="selected">Everyone</option>
+                    <option value="1">Only Clients</option>
+                  </select>
+             </li>
+             <li>
+                 <label>Product Category</label>
+                <select data-placeholder="Category" name="tocat" id="tocat" style="width:500px; list-style: none;" multiple class="chzn-select" tabindex="8">
+                     <optgroup label="Leg">
+                      <option id="Hamstring" value="Hamstring">Hamstring</option>
+                      <option id="Quad" value="Quad">Quad</option>
+                      <option id="Calf" value="Calf">Calf</option>
+                      <option id="Hip" value="Hip">Hip</option>
+                      <option id="Knee" value="Knee">Knee</option>
+                      <option id="Ankle" value="Ankle">Ankle</option>
+                    </optgroup>
+                    <optgroup label="Back">
+                      <option id="Multifidus" value="Multifidus">Multifidus</option>
+                      <option id="Transversus Abdominus" value="Transversus Abdominus">Transversus Abdominus</option>
+                      <option id="Latissimus dorsi" value="Latissimus dorsi">Latissimus dorsi</option>
+                      <option id="Trapezius" value="Trapezius">Trapezius</option>
+                    </optgroup>
+                    <optgroup label="Arm">
+                        <option id="Bicep" value="Bicep">Bicep</option>
+                        <option id="Tricep" value="Tricep">Tricep</option>
+                        <option id="Shoulder" value="Shoulder">Shoulder</option>
+                        <option id="Elbow" value="Elbow">Elbow</option>
+                     </optgroup>
+                    <optgroup label="Other">
+                        <option id="Neck" value="Neck">Neck</option>
+                        <option id="Abdomen" value="Abdomen">Abdomen</option>
+                    </optgroup>
+                </select>
+             </li>
+                                <li>
+                                    <label>Price</label>
+                                    <input type="text" name="price" id="price" />
+                                </li>
+                    <li>
+                        <input type="submit" name="btnSubmit" value="Submit Product"/>
+                    </li>
+                </ul>
+                            </div>
+            </form>
+    </section>
+         </div>
+     </section>
+                     }

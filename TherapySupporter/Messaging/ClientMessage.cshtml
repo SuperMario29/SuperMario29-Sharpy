@@ -1,0 +1,126 @@
+﻿@section Scripts {
+     <script src="~/Scripts/chosen.jquery.js" type="text/javascript"></script>
+     <script type="text/javascript"> $(".chzn-select").chosen(); $(".chzn-select-deselect").chosen({ allow_single_deselect: true }); </script>
+}
+
+@{
+    Layout = "~/_SiteMessage.cshtml";
+    Page.Title = "New Message";
+    if (WebSecurity.CurrentUserName == "")
+    {
+        Response.Redirect("~/Account/Login");
+    }
+
+    Response.OutputCache(60);
+
+    if (!UrlData[0].IsInt())
+    {
+        Response.Redirect("~/Premium/Management");
+    }
+    
+    var client = UrlData[0].AsInt();
+    
+    var receiverName = "";
+    var subject = "";
+    var body = "";
+    var timestamp = "";
+    var userID = WebSecurity.CurrentUserId;
+    var roles = (SimpleRoleProvider)Roles.Provider;
+    var userName = WebSecurity.CurrentUserName;
+
+    if (roles.GetRolesForUser(userName).Contains("Client"))
+    {
+        Response.Redirect("~/Premium/ClientHome");
+    }
+
+    var db = Database.Open("StarterSite");
+
+    var user = db.QueryValue("SELECT [Disabled] FROM UserProfile WHERE LOWER(Email) = LOWER(@0)", userName);
+
+    if (user)
+    {
+        Response.Redirect("~/Account/Disabled Account");
+    } 
+
+    var clientQue = db.Query("SELECT * FROM [UserProfile] WHERE [UserId]=@0 AND [hasTherapist]=@1", client, userID);
+    Validation.RequireField("topeer", "The To: Field Can Not Be Blank.");
+    Validation.RequireField("currentPassword", "The current password field is required.");
+
+    if (IsPost)
+    {
+
+        body = Request.Form["body"];
+        receiverName = Request.Form["topeer"];
+        subject = Request.Form["subject"];
+        timestamp = Request.Form["TimeStamp"];
+        var encrypt_email = Request.Form["isEncrypt"];
+        var password = Request.Form["password"];
+        
+        if (encrypt_email != null && password != "")
+        {  
+        var encrypt_body = StringCipher.Encrypt(body, password);
+        var hash = Crypto.HashPassword(password);
+        
+        db.Execute("INSERT INTO [Messages] ([senderId], [receiverId], [message], [messageTitle], [timestamp], [isEncrypt], [Password]) VALUES (@0, @1, @2, @3, @4,@5,@6)", userID, receiverName, encrypt_body, subject, timestamp, true, hash);
+        }
+        
+        else{
+            db.Execute("INSERT INTO [Messages] ([senderId], [receiverId], [message], [messageTitle], [timestamp]) VALUES (@0, @1, @2, @3, @4)", userID, receiverName, body, subject, timestamp);
+        }
+        
+        var email_id = db.GetLastInsertId();
+        db.Execute("INSERT INTO [Mail] ([Emailid], [UserId], [isFlag], [isRead], [isDeleted], [isReceive]) VALUES (@0,@1,@2,@3,@4,@5)", email_id, userID, false, false, false, false);
+
+        foreach (var item in receiverName.Split(','))
+        {
+            db.Execute("INSERT INTO [Mail] ([Emailid], [UserId], [isFlag], [isRead], [isDeleted], [isReceive]) VALUES (@0,@1,@2,@3,@4,@5)", email_id, item, false, false, false, true);
+        }
+        Response.Redirect("~/Premium/Management");
+
+    }
+    }
+
+@*@section featured {*@
+<section class="featured">
+    <div class="content-wrapper">
+                    <h1>@Page.Title.</h1>
+                    <h2>Sharapist: A Network For Therapy</h2>
+        <div/>
+    <form id="form1" name="form1" method="post" action="">
+         @AntiForgery.GetHtml()
+    @* If at least one validation error exists, notify the user *@
+    @Html.ValidationSummary("Message could not be sent. Please correct the errors and try again.", excludeFieldErrors: true, htmlAttributes: null)
+                <fieldset>
+                    <legend>New Message</legend>
+                    <ol>
+                    <li>
+                <label>To: </label>
+                <select data-placeholder="Find Peer" name="topeer" id="topeer" style="width:500px; list-style: none;" multiple class="chzn-select" tabindex="8" @Validation.For("topeer")>
+                    @foreach(var item in clientQue)
+                    {    
+                    <option selected value="@item.UserId">@item.Email</option>
+                    }
+                </select>    
+                @Html.ValidationMessage("topeer")            
+                        </li>
+                    <li>
+                <label>Subject: </label>
+                <input type="text" name="subject" id="subject" value="" />
+                     </li>
+                        <li>
+                            <label>Encrypt Email?:</label>
+                            <input type="checkbox" name="isEncrypt" id="isEncrypt" onchange="EncryptEmail(this)" />
+                            <label id="passwordLabel" hidden="hidden">Password:</label>
+                            <input id="password" type="password" name="password" hidden="hidden" />
+                        </li>
+                        <li>
+                <label>Body: </label>
+                <textarea name="body" id="body"></textarea>
+                            </li>
+                            </ol>
+                    </fieldset>
+        <input type="hidden" name="TimeStamp" value="@DateTime.Now" />
+        <input type="submit" value="Send" name="sendMessage" id="sendMessage" />
+        </div>
+</form>
+    </section>

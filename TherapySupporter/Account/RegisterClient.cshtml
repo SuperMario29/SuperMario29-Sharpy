@@ -1,0 +1,141 @@
+﻿@{
+    Layout = "~/_SiteMessage.cshtml";
+    Page.Title = "Register Client";
+
+    // Initialize general page variables
+    var email = "";
+    var password = "";
+    var confirmPassword = "";
+    var firstname = "";
+    var lastname = "";
+    var user_id = WebSecurity.CurrentUserId;
+    var userName = WebSecurity.CurrentUserName;
+
+    if (WebSecurity.CurrentUserName == "")
+    {
+        Response.Redirect("~/Account/Login");
+    }
+    
+    var roles = (SimpleRoleProvider)Roles.Provider;
+
+    if (roles.GetRolesForUser(userName).Contains("Client"))
+    {
+        Response.Redirect("~/Premium/ClientHome");
+    }
+
+    var db = Database.Open("StarterSite");
+
+    var checkuser = db.QueryValue("SELECT [Disabled] FROM UserProfile WHERE LOWER(Email) = LOWER(@0)", userName);
+
+    if (checkuser)
+    {
+        Response.Redirect("~/Account/Disabled Account");
+    }
+
+    // Setup validation
+    Validation.RequireField("email", "You must specify an email address.");
+    Validation.RequireField("password", "Password cannot be blank.");
+    Validation.RequireField("firstname", "The First Name field is required.");
+    Validation.RequireField("lastname", "The Last Name field is required.");
+    Validation.Add("confirmPassword",
+        Validator.EqualsTo("password", "Password and confirmation password do not match."));
+    Validation.Add("password",
+        Validator.StringLength(
+            maxLength: Int32.MaxValue,
+            minLength: 6,
+            errorMessage: "Password must be at least 6 characters"));
+
+    // If this is a POST request, validate and process data
+    if (IsPost) {
+        AntiForgery.Validate();
+        email = Request.Form["email"];
+        password = Request.Form["password"];
+        confirmPassword = Request.Form["confirmPassword"];
+        firstname = Request.Form["firstname"];
+        var firstUp = char.ToUpper(firstname[0]) + firstname.Substring(1);
+        lastname = Request.Form["lastname"];
+        var lastUp = char.ToUpper(lastname[0]) + lastname.Substring(1);
+        
+
+        // Validate the user's captcha answer
+        // if (!ReCaptcha.Validate("PRIVATE_KEY")) {
+        //     ModelState.AddError("recaptcha", "Captcha response was not correct");
+        // }
+
+        // If all information is valid, create a new account
+        if (Validation.IsValid()) {
+            // Insert a new user into the database
+
+            // Check if user already exists
+            var user = db.QuerySingle("SELECT Email FROM UserProfile WHERE LOWER(Email) = LOWER(@0)", email);
+            if (user == null) {
+                // Insert email into the profile table
+
+                db.Execute("INSERT INTO UserProfile (Email, firstName, lastName, hasTherapist, [Disabled]) VALUES (@0, @1,@2,@3,@4)", email, firstUp, lastUp, user_id, false);
+
+                // Create and associate a new entry in the membership database.
+                // If successful, continue processing the request
+                try {
+                    bool requireEmailConfirmation = !WebMail.SmtpServer.IsEmpty();
+                    var token = WebSecurity.CreateAccount(email, password, requireEmailConfirmation);
+                    roles.AddUsersToRoles(new[] { "" + email }, new[] { "Client" });
+
+
+                        Response.Redirect("~/Premium/ClientManagement");
+                    }
+                 catch (System.Web.Security.MembershipCreateUserException e) {
+                    ModelState.AddFormError(e.Message);
+                }
+            } else {
+                // User already exists
+                ModelState.AddFormError("Email address is already in use.");
+            }
+        }
+    }
+}
+
+<hgroup class="title">
+    <h1>@Page.Title.</h1>
+    <h2>Create a new client account.</h2>
+</hgroup>
+
+<form method="post">
+    @AntiForgery.GetHtml()
+    @* If at least one validation error exists, notify the user *@
+    @Html.ValidationSummary("Account creation was unsuccessful. Please correct the errors and try again.", excludeFieldErrors: true, htmlAttributes: null)
+
+    <fieldset>
+        <legend>Registration Form</legend>
+        <ol>
+            <li>
+                <label>First Name</label>
+                <input type="text" id="firstname" name="firstname" value="@firstname"  @Validation.For("firstname")) />
+                   @Html.ValidationMessage("firstname")
+            </li>
+            <li>
+                <label>Last Name</label>
+                <input type="text" id="lastname" name="lastname" value="@lastname"  @Validation.For("lastname")) />
+                @Html.ValidationMessage("lastname")
+            </li>
+
+            <li class="email">
+                <label for="email" @if(!ModelState.IsValidField("email")){<text>class="error-label"</text>}>Email address</label>
+                <input type="text" id="email" name="email" value="@email" @Validation.For("email") />
+                @* Write any email validation errors to the page *@
+                @Html.ValidationMessage("email")
+            </li>
+            <li class="password">
+                <label for="password" @if(!ModelState.IsValidField("password")) {<text>class="error-label"</text>}>Password</label>
+                <input type="password" id="password" name="password" @Validation.For("password") />
+                @* Write any password validation errors to the page *@
+                @Html.ValidationMessage("password")
+            </li>
+            <li class="confirm-password">
+                <label for="confirmPassword" @if(!ModelState.IsValidField("confirmPassword")) {<text>class="error-label"</text>}>Confirm password</label>
+                <input type="password" id="confirmPassword" name="confirmPassword" @Validation.For("confirmPassword") />
+                @* Write any password validation errors to the page *@
+                @Html.ValidationMessage("confirmPassword")
+        </ol>
+        <input type="submit" value="Register" />
+    </fieldset>
+</form>

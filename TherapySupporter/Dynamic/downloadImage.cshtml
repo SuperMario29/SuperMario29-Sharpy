@@ -1,0 +1,22 @@
+﻿@{
+    if (WebSecurity.CurrentUserName == "")
+    {
+        Response.Redirect("~/Account/Login");
+    }
+    var userID = WebSecurity.CurrentUserId;
+    
+    var db = Database.Open("StarterSite");
+    
+    var sql = "Select * FROM UserProfile Where UserID = @0";
+    var file = db.QuerySingle(sql, userID);
+    if (file.ProfileImageMIME.StartsWith("image/"))
+    {
+        Response.AddHeader("content-disposition", "inline; filename=" + file.ProfileImageName);
+    }
+    else
+    {
+        Response.AddHeader("content-disposition", "attachment; filename=" + file.ProfileImageName);
+    }
+    Response.ContentType = file.ProfileImageMIME;
+    Response.BinaryWrite((byte[])file.ProfileImage);
+}

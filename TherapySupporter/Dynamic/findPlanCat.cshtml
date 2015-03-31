@@ -1,0 +1,20 @@
+﻿@{
+    if (WebSecurity.CurrentUserName == "")
+    {
+        Response.Redirect("~/Account/Login");
+    }
+    Response.OutputCache(60);
+    if(!UrlData[0].IsEmpty())
+    {
+    var result = UrlData[0];
+        
+    var db = Database.Open("StarterSite");
+
+    var planQue = db.Query("SELECT [Plans].* FROM [Plans] WHERE [visibility]=@0 AND [Category] LIKE @1", 2, "%"+result+"%").ToList();
+
+    foreach (var item in planQue)
+        {
+            Response.Write("<a href='Plan/PeerPlan/" + item.id + "'>" + item.name + "</a>");
+        }
+}
+}

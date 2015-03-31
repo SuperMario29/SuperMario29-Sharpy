@@ -1,0 +1,441 @@
+﻿@{
+    Layout = "~/_SiteMain.cshtml";
+    Page.Title = "Settings";
+
+    if (WebSecurity.CurrentUserName == "")
+    {
+        Response.Redirect("~/Account/Login");
+    }
+    
+    // Initialize general page variables
+    var occupation = "";
+    var licenceNumber = "";
+    var stateProvider = "";
+    var firstname = "";
+    var lastname = "";
+    var city = "";
+    var company = "";
+    var privacy = 0;
+    var email = "";
+    var userName = WebSecurity.CurrentUserName;
+    var userID = WebSecurity.CurrentUserId;
+
+    //Populate Form
+    var roles = (SimpleRoleProvider)Roles.Provider;
+
+    if (roles.GetRolesForUser(userName).Contains("Client"))
+    {
+        Response.Redirect("~/Premium/ClientHome");
+    }
+    
+    var db = Database.Open("StarterSite");
+
+    // Check if user already exists
+    var user = db.QuerySingle("SELECT * FROM UserProfile WHERE LOWER(Email) = LOWER(@0)", userName);
+    if (user != null)
+    {
+        occupation = user.Occupation;
+        firstname = user.firstName;
+        lastname = user.lastName;
+        email = user.Email;
+        stateProvider = user.stateProvider;
+        licenceNumber = user.licenseNumber;
+        privacy = user.visibility;
+        city = user.City;
+        company = user.Company;
+
+        if (user.Disabled)
+        {
+            Response.Redirect("~/Account/Disabled Account");
+        }  
+    }
+
+    if (occupation == "Client")
+    {
+        Response.Redirect("~/Premium/ClientHome");
+    }
+    
+    // Setup validation
+    Validation.RequireField("email", "You must specify an email address.");
+    Validation.RequireField("firstname", "The First Name field is required.");
+    Validation.RequireField("lastname", "The Last Name field is required.");
+
+    // If this is a POST request, validate and process data
+    if (IsPost) {
+        AntiForgery.Validate();
+
+        email = Request.Form["email"];
+        stateProvider = Request.Form["state"];
+        var newOccupation = Request.Form["occupation"];
+        licenceNumber = Request.Form["licenceNumber"];
+        firstname = Request.Form["firstname"];
+        firstname = char.ToUpper(firstname[0]) + firstname.Substring(1);
+        lastname = Request.Form["lastname"];
+        lastname = char.ToUpper(lastname[0]) + lastname.Substring(1);
+        city = Request.Form["city"];
+        company = Request.Form["company"];
+        
+        if (Validation.IsValid()) {
+            // Insert a new user into the database
+
+            // Check if user already exists
+            user = db.QuerySingle("SELECT Email FROM UserProfile WHERE ([UserId])=@0", userID);
+            if (user != null) {
+                // Insert email into the profile table
+                db.Execute("UPDATE UserProfile SET Email=@0, Occupation=@1, licenseNumber=@2, stateProvider=@3, firstName=@4, lastName=@5, City=@6, Company=@7 WHERE [UserID]=@8", email, newOccupation, licenceNumber, stateProvider, firstname, lastname, city, company, userID);
+                roles.RemoveUsersFromRoles(new[] { "" + email }, new[] { occupation });
+                roles.AddUsersToRoles(new[] { "" + email }, new[] { newOccupation });
+
+                // Create and associate a new entry in the membership database.
+                // If successful, continue processing the request
+                try {
+                        // Navigate back to the homepage and exit
+                        Response.Redirect("~/Home");
+                    }
+                catch (System.Web.Security.MembershipCreateUserException e) {
+                    ModelState.AddFormError(e.Message);
+                }
+            } 
+        }
+    }
+    }
+
+<hgroup class="title">
+    <h1>@Page.Title.</h1>
+    <h2>Sharapist: A Network For Therapy</h2>
+</hgroup>
+
+<section id="loginForm">
+<form method="post">
+    @AntiForgery.GetHtml()
+    @* If at least one validation error exists, notify the user *@
+    @Html.ValidationSummary("Account creation was unsuccessful. Please correct the errors and try again.", excludeFieldErrors: true, htmlAttributes: null)
+
+    <fieldset>
+        <legend>User Information</legend>
+        <ol>
+            <li>
+                <label>Profile Visablity</label>
+                 <select id="proVis" name="proVis" size="1" >
+                    <option value="2">Everyone</option>
+                    <option value="1">Only Peer Network</option>
+                    <option value="0">No One</option>
+                     @switch (privacy)
+                     {
+                     case 2:
+                     <option value="2" selected="selected">Everyone</option>
+                     break;
+                     case 1:
+                     <option value="1" selected="selected">Only Peer Network</option>
+                     break;
+                     case 0:
+                     <option value="0" selected="selected">No One</option>
+                         break;
+                     }
+                  </select>
+            </li>
+               <li>
+                <label>First Name</label>
+                <input type="text" id="firstname" name="firstname" value="@firstname"  @Validation.For("firstname")) />
+                   @Html.ValidationMessage("firstname")
+            </li>
+            <li>
+                <label>Last Name</label>
+                <input type="text" id="lastname" name="lastname" value="@lastname"  @Validation.For("lastname")) />
+                @Html.ValidationMessage("lastname")
+            </li>
+            <li class="email">
+                <label for="email" @if(!ModelState.IsValidField("email")){<text>class="error-label"</text>}>Email address</label>
+                <input type="text" id="email" name="email" value="@email" @Validation.For("email") />
+                @* Write any email validation errors to the page *@
+                @Html.ValidationMessage("email")
+            </li>
+            <li>
+                <label>Occupation</label>
+               <select id="occupation" name="occupation" size="1" >
+                    <option value="Physical Therapist">Physical Therapist</option>
+                    <option value="Occupational Therapist">Occupational Therapist</option>
+                    <option value="Student: PT">Student: Physical Therapist</option>
+                   <option value="Student: OT">Student: Occupational Therapist</option>
+                    <option value="Personal Trainer">Personal Trainer</option>
+                   @switch (occupation)
+                   {
+                       case "Physical Therapist":
+                    <option value="Physical Therapist" selected="selected">Physical Therapist</option>
+                   <option value="Occupational Therapist">Occupational Therapist</option>
+                    <option value="Student: PT">Student: Physical Therapist</option>
+                   <option value="Student: OT">Student: Occupational Therapist</option>
+                    <option value="Personal Trainer">Personal Trainer</option>
+                   break;
+                   case "Occupational Therapist":
+                    <option value="Occupational Therapist" selected="selected">Occupation Therapist</option>
+                   <option value="Physical Therapist">Physical Therapist</option>
+                    <option value="Student: PT">Student: Physical Therapist</option>
+                   <option value="Student: OT">Student: Occupational Therapist</option>
+                    <option value="Personal Trainer">Personal Trainer</option>
+                   break;
+                   case "Student: PT":
+                    <option value="Physical Therapist">Physical Therapist</option>
+                    <option value="Occupational Therapist">Occupational Therapist</option>
+                    <option value="Student: PT" selected="selected">Student: Physical Therapist</option>
+                    <option value="Student: OT">Student: Occupational Therapist</option>
+                    <option value="Personal Trainer">Personal Trainer</option>
+                   break;
+                   case "Student: OT":
+                    <option value="Physical Therapist">Physical Therapist</option>
+                    <option value="Occupational Therapist">Occupational Therapist</option>
+                    <option value="Student: PT">Student: Physical Therapist</option>
+                    <option value="Student: OT" selected="selected">Student: Occupational Therapist</option>
+                    <option value="Personal Trainer">Personal Trainer</option>
+                   break;
+                   case "Personal Trainer":
+                    <option value="Personal Trainer" selected="selected">Personal Trainer</option>
+                   <option value="Physical Therapist">Physical Therapist</option>
+                    <option value="Occupational Therapist">Occupational Therapist</option>
+                    <option value="Student: PT">Student: Physical Therapist</option>
+                   <option value="Student: OT">Student: Occupational Therapist</option>
+                   break;
+                   }
+                   </select>
+            </li>
+            <li>
+                <label>Medical Licence Number</label>
+                <input type="text" id="licenceNumber" name="licenceNumber" value="@licenceNumber") />
+            </li>
+            <li>
+                <label id="idcomp">Company/Business</label>
+                <input type="text" id="company" name="company" value="@company") />
+            </li>
+            <li>
+                <label id="idcity">City/Providence</label>
+                <input type="text" id="city" name="city" value="@city") />
+            </li>
+            <li>
+                <label>State Provider</label>
+                <select id="state" name="state" size="1" >
+                    <option value="AL">AL-Alabama</option>
+                    <option value="AK">AK-Alaska</option>
+                    <option value="AZ">AZ-Arizona</option>
+                    <option value="AR">AR-Arkansas</option>
+                    <option value="CA">CA-California</option>
+                    <option value="CO">CO-Colorado</option>
+                    <option value="CT">CT-Connecticut</option>
+                    <option value="DE">DE-Delaware</option>
+                    <option value="DC">DC-District of Columbia</option>
+                    <option value="FL">FL-Florida</option>
+                    <option value="GA">GA-Georgia</option>
+                    <option value="HI">HI-Hawaii</option>
+                    <option value="ID">ID-Idaho</option>
+                    <option value="IL">IL-Illinois</option>
+                    <option value="IN">IN-Indiana</option>
+                    <option value="IA">IA-Iowa</option>
+                    <option value="KS">KS-Kansas</option>
+                    <option value="KY">KY-Kentucky</option>
+                    <option value="LA">LA-Louisiana</option>
+                    <option value="ME">ME-Maine</option>
+                    <option value="MD">MD-Maryland</option>
+                    <option value="MA">MA-Massachusetts</option>
+                    <option value="MI">MI-Michigan</option>
+                    <option value="MN">MN-Minnesota</option>
+                    <option value="MS">MS-Mississippi</option>
+                    <option value="MO">MO-Missouri</option>
+                    <option value="MT">MT-Montana</option>
+                    <option value="NE">NE-Nebraska</option>
+                    <option value="NV">NV-Nevada</option>
+                    <option value="NH">NH-New Hampshire</option>
+                    <option value="NJ">NJ-New Jersey</option>
+                    <option value="NM">NM-New Mexico</option>
+                    <option value="NY">NY-New York</option>
+                    <option value="NC">NC-North Carolina</option>
+                    <option value="ND">ND-North Dakota</option>
+                    <option value="OH">OH-Ohio</option>
+                    <option value="OK">OK-Oklahoma</option>
+                    <option value="OR">OR-Oregon</option>
+                    <option value="PA">PA-Pennsylvania</option>
+                    <option value="RI">RI-Rhode Island</option>
+                    <option value="SC">SC-South Carolina</option>
+                    <option value="SD">SD-South Dakota</option>
+                    <option value="TN">TN-Tennessee</option>
+                    <option value="TX">TX-Texas</option>
+                    <option value="UT">UT-Utah</option>
+                    <option value="VT">VT-Vermont</option>
+                    <option value="VA">VA-Virginia</option>
+                    <option value="WA">WA-Washington</option>
+                    <option value="WV">WV-West Virginia</option>
+                    <option value="WI">WI-Wisconsin</option>
+                    <option value="WY">WY-Wyoming</option>
+                    @switch (stateProvider)
+                    {
+                        case "AL":
+                    <option value="AL"  selected="selected">AL-Alabama</option>
+                    break;
+                    case "AK":
+                    <option value="AK" selected="selected">AK-Alaska</option>
+                    break;
+                    case "AZ":
+                    <option value="AZ" selected="selected">AZ-Arizona</option>
+                    break;
+                    case "AR":
+                    <option value="AR" selected="selected">AR-Arkansas</option>
+                    break;
+                    case "CA":
+                    <option value="CA" selected="selected">CA-California</option>
+                    break;
+                    case "CO":
+                    <option value="CO" selected="selected">CO-Colorado</option>
+                    break;
+                    case "CT":
+                    <option value="CT" selected="selected">CT-Connecticut</option>
+                    break;
+                    case "DE":
+                    <option value="DE" selected="selected">DE-Delaware</option>
+                    break;
+                    case "DC":
+                    <option value="DC" selected="selected">DC-District of Columbia</option>
+                    break;
+                    case "FL":
+                    <option value="FL" selected="selected">FL-Florida</option>
+                    break;
+                    case "GA":
+                    <option value="GA" selected="selected">GA-Georgia</option>
+                    break;
+                    case "HI":
+                    <option value="HI" selected="selected">HI-Hawaii</option>
+                    break;
+                    case "ID":
+                    <option value="ID" selected="selected">ID-Idaho</option>
+                    break;
+                    case "IL":
+                    <option value="IL" selected="selected">IL-Illinois</option>
+                    break;
+                    case "IN":
+                    <option value="IN" selected="selected">IN-Indiana</option>
+                    break;
+                    case "IA":
+                    <option value="IA" selected="selected">IA-Iowa</option>
+                    break;
+                    case "KS":
+                    <option value="KS" selected="selected">KS-Kansas</option>
+                    break;
+                    case "KY":
+                    <option value="KY" selected="selected">KY-Kentucky</option>
+                    break;
+                    case "LA":
+                    <option value="LA" selected="selected">LA-Louisiana</option>
+                    break;
+                    case "ME":
+                    <option value="ME" selected="selected">ME-Maine</option>
+                    break;
+                    case "MD":
+                    <option value="MD" selected="selected">MD-Maryland</option>
+                    break;
+                    case "MA":
+                    <option value="MA" selected="selected">MA-Massachusetts</option>
+                    break;
+                    case "MI":
+                    <option value="MI" selected="selected">MI-Michigan</option>
+                    break;
+                    case "MN":
+                    <option value="MN" selected="selected">MN-Minnesota</option>
+                    break;
+                    case "MS":
+                    <option value="MS" selected="selected">MS-Mississippi</option>
+                    break;
+                    case "MO":
+                    <option value="MO" selected="selected">MO-Missouri</option>
+                    break;
+                    case "MT":
+                    <option value="MT" selected="selected">MT-Montana</option>
+                    break;
+                    case "NE":
+                    <option value="NE" selected="selected">NE-Nebraska</option>
+                    break;
+                    case "NV":
+                    <option value="NV" selected="selected">NV-Nevada</option>
+                    break;
+                    case "NH":
+                    <option value="NH" selected="selected">NH-New Hampshire</option>
+                    break;
+                    case "NJ":
+                    <option value="NJ" selected="selected">NJ-New Jersey</option>
+                    break;
+                    case "NM":
+                    <option value="NM" selected="selected">NM-New Mexico</option>
+                    break;
+                    case "NY":
+                    <option value="NY" selected="selected">NY-New York</option>
+                    break;
+                    case "NC":
+                    <option value="NC" selected="selected">NC-North Carolina</option>
+                    break;
+                    case "ND":
+                    <option value="ND" selected="selected">ND-North Dakota</option>
+                    break;
+                    case "OH":
+                    <option value="OH" selected="selected">OH-Ohio</option>
+                    break;
+                    case "OK":
+                    <option value="OK" selected="selected">OK-Oklahoma</option>
+                    break;
+                    case "OR":
+                    <option value="OR" selected="selected">OR-Oregon</option>
+                    break;
+                    case "PA":
+                    <option value="PA" selected="selected">PA-Pennsylvania</option>
+                    break;
+                    case "RI":
+                    <option value="RI" selected="selected">RI-Rhode Island</option>
+                    break;
+                    case "SC":
+                    <option value="SC" selected="selected">SC-South Carolina</option>
+                    break;
+                    case "SD":
+                    <option value="SD" selected="selected">SD-South Dakota</option>
+                    break;
+                    case "TN":
+                    <option value="TN" selected="selected">TN-Tennessee</option>
+                    break;
+                    case "TX":
+                    <option value="TX" selected="selected">TX-Texas</option>
+                    break;
+                    case "UT":
+                    <option value="UT" selected="selected">UT-Utah</option>
+                    break;
+                    case "VT":
+                    <option value="VT" selected="selected">VT-Vermont</option>
+                    break;
+                    case "VA":
+                    <option value="VA" selected="selected">VA-Virginia</option>
+                    break;
+                    case "WA":
+                    <option value="WA" selected="selected">WA-Washington</option>
+                    break;
+                    case "WV":
+                    <option value="WV" selected="selected">WV-West Virginia</option>
+                    break;
+                    case "WI":
+                    <option value="WI" selected="selected">WI-Wisconsin</option>
+                    break;
+                    case "WY":
+                    <option value="WY" selected="selected">WY-Wyoming</option>
+                    break;
+                    }
+                </select>
+            </li>
+            <li>
+                <label>Reset Password:</label>
+                <a href="~/Account/Manage">Reset Password</a>
+            </li>
+            <li>
+                <label>Disable Your User Account?:</label>
+                <button type="button" onclick="DisableAccount()">Disable Account?</button>
+            </li>
+            <li>
+                <label>Delete Your User Account?:</label>
+                <button type="button" onclick="DeleteAccount()">Delete Account?</button>
+            </li>
+        </ol>
+        <input type="submit" value="Update Info" />
+    </fieldset>
+</form>
+    </section>
